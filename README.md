@@ -13,7 +13,7 @@ npm install --global atomic-bomb
 
 ## Usage: 
 ```shell
-atomic-bomb --type atom|molecule|organism --name [Name]  
+atomic-bomb --type atom|molecule|organism|page --name [Name]  
 ```   
 
 
