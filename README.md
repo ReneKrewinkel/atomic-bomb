@@ -1,6 +1,6 @@
 # Atomic Bomb
 
-<img src='./nuke.png' style="height: 180px;" alt="AtomicBomb">
+<img src='./nuke.png' style="width: 100%;" alt="AtomicBomb">
 
 Creates boilerplate atomic design components for React apps.
 
