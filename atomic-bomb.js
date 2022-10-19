@@ -1,100 +1,135 @@
 #!/usr/bin/env node
 
-//import inquirer from 'inquirer'
 import figlet from 'figlet'
 import chalk from 'chalk'
 import fs from 'fs'
 import * as url from 'url'
-
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 
-//const __filename = url.fileURLToPath(import.meta.url);
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
-
-
-const valid = ["atom", "molecule", "organism"]
-const usage ='atomic-bomb --type atom|molecule|organism --name [Name]'
-const packagePath = "./package.json"
-const srcPath = "./src"
-const componentsPath = `${srcPath}/components`
-const templatePath = `${__dirname}/templates`
-
-const error = (msg, terminate = true) => {
-    console.log(chalk.red(`💀 ${msg}`))
-    terminate ? process.exit(1) : false
-}
-
-const check = (msg) => {
-    console.log(`✅ ${msg}`)
-}
-
-const processTemplates = (type, name, dest) => {
-    const base = `${componentsPath}/${type}`
-    fs.readdir(templatePath, (err, files) => {
-        files.forEach(file => {
-            const fName = file.replace('[NAME]', name)
-            check(`Processing: ${fName}`);
-            const content = fs.readFileSync(`${templatePath}/${file}`, 'utf8')
-            const result = content.replace(/\[NAME\]/g, name)
-            const result2 = result.replace(/\[TYPE\]/g, type)
-            fs.writeFileSync(`${dest}/${fName}`, result2)
-        })
-        fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
-    })
-
-    return true
-}
-
-const checkDir = async (dir) => {
-    if (!fs.existsSync(dir)) error(`${dir} directory not present`)
-    check(`${dir} directory present`)
-    return true
-}
-
-const checkNotDir = async (dir) => {
-    if(fs.existsSync(dir)) error(`${dir} directory exists`)
-    fs.mkdirSync(dir, 0o744);
-    check(`${dir} directory not present & created`)
-    return true
-}
-
-
-const checkReact = async() => {
-    let result = fs.readFileSync(packagePath, 'utf8')
-    if(!JSON.parse(result).dependencies.react) error("react not installed")
-    check(`react ${ JSON.parse(result).dependencies.react.replace('^', '') } is installed`)
-    return true
-}
-
-const checkPackageJson = async() => {
-    if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
-    check("package.json is available")
-    return true
-}
-
-const startUp = async (type, name) => {
-    console.clear()
-    const targetDir = `${componentsPath}/${type}/${name}`
-    figlet(`AtomicBomb`, async (err, data) => {
-        console.log(chalk.green(`${data} \n`))
-        const packageExists = await checkPackageJson()
-        const isReact = await checkReact()
-        const hasSrcDir = await checkDir(srcPath)
-        const hasComponentsDir = await checkDir(componentsPath)
-        const hasComponent = await checkNotDir(targetDir)
-        const filesProcessed = await processTemplates(type, name, targetDir)
-
-        console.log("\n\n💥 atomic-bomb v2.0 © Rene Krewinkel \n\n")
-    })
-    return true
-}
-
+/// Tools
 const convertToPascalCase = (s) => {
     const r = (s.replace(/\w+/g, (w) =>  w[0].toUpperCase() + w.slice(1).toLowerCase()))
     return(r.split(' ').join(''))
 }
 
+/// App specific
+const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+const appPackage = `${__dirname}/package.json`
+
+const appName = JSON.parse(fs.readFileSync(appPackage, 'utf8')).name
+const banner = convertToPascalCase(appName.replace('-', ' '))
+const valid = ["atom", "molecule", "organism", "page"]
+const usage =`${appName} --type ${ valid.join("|") } --name [NAME]`
+const templatePath = `${__dirname}/templates`
+
+/// Project specific
+const packagePath = "./package.json"
+const srcPath = "./src"
+const componentsPath = `${srcPath}/components`
+
+/// Error, if error exit!
+const error = (msg, terminate = true) => {
+    console.log(chalk.red(`💀 ${msg}`))
+    terminate ? process.exit(1) : false
+}
+
+/// Display check mark with message
+const check = (msg) => {
+    console.log(`✅ ${msg}`)
+}
+
+/// Print the copyright notice
+const printCopyright = () => new Promise( resolve => {
+    let result = fs.readFileSync(appPackage, 'utf8')
+    let pkg = JSON.parse(result)
+    console.log(`💥 ${ appName } v${ pkg.version } © ${ pkg.author } \n`)
+    resolve(true)
+})
+
+/// Process the templates
+const processTemplates = (type, name, dest) => new Promise( (resolve, reject) => {
+    try {
+        const base = `${componentsPath}/${type}`
+        fs.readdir(templatePath, (err, files) => {
+            files.forEach(file => {
+                const fName = file.replace('[NAME]', name)
+                check(`Processing: ${fName}`);
+                const content = fs.readFileSync(`${templatePath}/${file}`, 'utf8')
+                const result = content.replace(/\[NAME\]/g, name)
+                const result2 = result.replace(/\[TYPE\]/g, type)
+                fs.writeFileSync(`${dest}/${fName}`, result2)
+            })
+            fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
+        })
+        resolve(true)
+    } catch(err)  {
+        error("Oops...")
+        reject(false)
+    }
+
+})
+/// Check if mandatory dir exists
+const checkDir = (dir) => new Promise( resolve => {
+    if (!fs.existsSync(dir)) error(`${dir} directory not present`)
+    check(`${dir} directory present`)
+    resolve(true)
+})
+
+/// Check if the Component directory DOESN'T exist and create it
+const checkNotDir = async (dir) => new Promise( resolve => {
+    if(fs.existsSync(dir)) error(`${dir} directory exists`)
+    fs.mkdirSync(dir, 0o744);
+    check(`${dir} directory not present & created`)
+    resolve(true)
+})
+
+/// Check if the atomic dirs exist, if not, create them
+const createAtomicDirs = () => new Promise( resolve => {
+    valid.forEach( item => {
+        const theDir = `${componentsPath}/${item}s`
+        if(!fs.existsSync(theDir)) {
+            fs.mkdirSync(theDir)
+            check(`atomic dir ${theDir} created`)
+        }
+    })
+    check(`atomic dirs present`)
+    resolve(true)
+})
+
+/// Check if react is present in the project package.json
+const checkReact = async() => new Promise( resolve => {
+    let result = fs.readFileSync(packagePath, 'utf8')
+    if(!JSON.parse(result).dependencies.react) error("react not installed")
+    check(`react ${ JSON.parse(result).dependencies.react.replace('^', '') } is installed`)
+    resolve(true)
+})
+
+/// Check if the projects package.json exists
+const checkPackageJson = () => new Promise( resolve => {
+    if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
+    check("package.json is available")
+    resolve(true)
+})
+
+/// Main routine
+const startUp = (type, name) => new Promise( resolve => {
+    console.clear()
+    const targetDir = `${componentsPath}/${type}/${name}`
+    figlet(banner, async (err, data) => {
+        console.log(chalk.green(`${data} \n`))
+        await printCopyright()
+        const packageExists = await checkPackageJson()
+        const isReact = await checkReact()
+        const hasSrcDir = await checkDir(srcPath)
+        const hasComponentsDir = await checkDir(componentsPath)
+        const hasAtomicDirs = await createAtomicDirs()
+        const hasComponent = await checkNotDir(targetDir)
+        const isProcessed = await processTemplates(type, name, targetDir)
+    })
+})
+
+/// Check commandline args
 const processArgs = (args) => {
     const argv = yargs(hideBin(args)).argv
     try {
@@ -107,6 +142,6 @@ const processArgs = (args) => {
     }
 }
 
+/// Let's go!
 const [t, n] = processArgs(process.argv)
 await startUp(t, n)
-

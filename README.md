@@ -1,5 +1,7 @@
 # Atomic Bomb
 
+<img src='./nuke.png'>
+
 Creates boiler plate atomic design components for React apps.
 
 > This tool is for educational purposes only. 

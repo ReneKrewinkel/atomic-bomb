@@ -1,23 +1,24 @@
 {
   "name": "atomic-bomb",
-  "version": "2.0.0",
+  "version": "2.0.5",
   "description": "",
   "main": "atomic-bomb.js",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-user/repo-url.git"
+    "url": "https://github.com/ReneKrewinkel/atomic-bomb.git"
   },
   "files": [
     "templates/*"
   ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "npm publish"
   },
   "keywords": ["atomic design", "education", "react"],
   "author": "Rene Krewinkel",
   "bin": "./atomic-bomb.js",
-  "license": "GNU",
+  "license": "GPL-1.0-only",
   "dependencies": {
     "chalk": "^5.1.2",
     "figlet": "^1.5.2",
