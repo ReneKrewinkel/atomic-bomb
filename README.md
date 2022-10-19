@@ -1,6 +1,6 @@
 # Atomic Bomb
 
-<img src='./nuke.png'>
+<img src='./nuke.png' style="height: 120px; margin: auto">
 
 Creates boiler plate atomic design components for React apps.
 
