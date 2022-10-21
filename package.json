@@ -11,10 +11,6 @@
   "files": [
     "templates/*"
   ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "npm publish"
-  },
   "keywords": [
     "atomic design",
     "education",
