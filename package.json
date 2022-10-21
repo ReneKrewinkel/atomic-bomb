@@ -1,6 +1,6 @@
 {
   "name": "atomic-bomb",
-  "version": "2.0.5",
+  "version": "2.1.0",
   "description": "",
   "main": "atomic-bomb.js",
   "type": "module",
