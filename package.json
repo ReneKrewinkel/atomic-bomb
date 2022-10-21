@@ -15,7 +15,11 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "deploy": "npm publish"
   },
-  "keywords": ["atomic design", "education", "react"],
+  "keywords": [
+    "atomic design",
+    "education",
+    "react"
+  ],
   "author": "Rene Krewinkel",
   "bin": "./atomic-bomb.js",
   "license": "GPL-1.0-only",

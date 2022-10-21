@@ -9,6 +9,9 @@ Creates boilerplate atomic design components for React apps.
 ## Install
 ```shell
 npm install --global atomic-bomb
+# Or in your project
+npm install --save-dev atomic-bomb
+yarn add -D atomic-bomb
 ```
 
 ## Usage: 
