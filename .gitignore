@@ -105,3 +105,4 @@ dist
 
 # IDE Settings
 .idea/
+.idea/*
