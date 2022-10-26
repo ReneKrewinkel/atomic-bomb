@@ -1,5 +1,5 @@
 # Atomic Bomb
-Creates boilerplate atomic design components for React apps.
+This commandline tool creates boilerplate atomic design components for React apps.
 
 <img src='./nuke.png' style="width: 100%;" alt="AtomicBomb">
 
@@ -29,6 +29,7 @@ atomic-bomb --type molecule --name Header
 ```shell
 [PROJECT_ROOT]/src/components
 ├── atoms
+│   ├── _atoms.scss
 │   ├── Label
 │   │   ├── Label.js
 │   │   ├── Label.stories.js
@@ -38,7 +39,8 @@ atomic-bomb --type molecule --name Header
 │   │   └── index.js
 │   └── _index.scss
 └── molecules
-    ├── Header
+    ├── _molecules.scss
+    ├── Header    
     │   ├── Header.js
     │   ├── Header.stories.js
     │   ├── Header.test.js
