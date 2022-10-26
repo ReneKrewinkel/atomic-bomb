@@ -1,10 +1,9 @@
 # Atomic Bomb
+Creates boilerplate atomic design components for React apps.
 
 <img src='./nuke.png' style="width: 100%;" alt="AtomicBomb">
 
-Creates boilerplate atomic design components for React apps.
-
-> This tool is for educational purposes only. 
+> **IMPORTANT** This tool is for educational purposes only. 
 
 ## Install
 ```shell
