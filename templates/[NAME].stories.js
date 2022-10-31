@@ -6,8 +6,8 @@ const [NAME]Meta = {
     component: [NAME],
     argTypes: {
         testID: { table: { disable: true } },
-        utilityClasses: { name: "Utility Classes" },
-        exceptionType: { name: "Exception Type"}
+        size: { name: "Size" },
+        type: { name: "Type"}
     }
 }
 
@@ -17,7 +17,8 @@ const Template = (args) => <[NAME] {...args} />
 export const Default[NAME] = Template.bind({})
 Default[NAME].args = {
     testID: testID,
-    utilityClasses: []
+    size: "medium",
+    type: "regular"
 }
 
 export default [NAME]Meta

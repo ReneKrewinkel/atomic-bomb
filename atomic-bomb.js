@@ -90,7 +90,7 @@ const processTemplates = (type, name, dest) => {
             check(`${icons[type]} ${type}s/${fName}`);
             const content = fs.readFileSync(`${templatePath}/${file}`, 'utf8')
             const result = content.replace(/\[NAME\]/g, name)
-            const result2 = result.replace(/\[TYPE\]/g, type)
+            const result2 = result.replace(/\[TYPE\]/g, `${type}s`)
             fs.writeFileSync(`${dest}/${fName}`, result2)
         })
         fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
@@ -100,9 +100,9 @@ const processTemplates = (type, name, dest) => {
 
 }
 
-const startUp = (type, name) => {
+const startUp = (type, names) => {
 
-    const targetDir = `${componentsPath}/${type}s/${name}`
+
     figlet(appBanner, (err, data) => {
         console.log(chalk.green(`${data}`))
         checkPackageJson()
@@ -110,8 +110,13 @@ const startUp = (type, name) => {
         checkAndCreateDir(srcPath)
         checkAndCreateDir(componentsPath)
         createAtomicDirs()
-        createComponentDir(`${type}/${name}`, targetDir)
-        processTemplates(type, name, targetDir)
+
+        names.forEach(name => {
+            const targetDir = `${componentsPath}/${type}s/${name}`
+            createComponentDir(`${type}/${name}`, targetDir)
+            processTemplates(type, name, targetDir)
+        })
+
         showCopyright()
     })
 }
@@ -119,14 +124,19 @@ const startUp = (type, name) => {
 
 const processArgs = (args) => {
 
-    const usage =`${appName} --type ${ validOptions.join("|") } --name [NAME]`
+    const usage =`${appName} --type ${ validOptions.join("|") } --name [NAME](,[NAME],[NAME])`
 
     const argv = yargs(hideBin(args)).argv
     try {
         if (!argv.type || !argv.name) error(usage)
         if (validOptions.indexOf(argv.type.toLowerCase()) === -1) error(usage)
 
-        return([argv.type.toLowerCase(), convertToPascalCase(argv.name) ])
+        const names = argv.name.split(",")
+        console.log(names)
+        const realNames = names.map(item => convertToPascalCase(item))
+        console.log(realNames)
+
+        return([argv.type.toLowerCase(), realNames ])
     } catch(err) {
         error(usage)
     }

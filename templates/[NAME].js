@@ -6,30 +6,32 @@ const [NAME] = (props) => {
 
     return(
         <div data-testid={ props.testID }
-             data-object-type={ props.exceptionType ?? ""}
-             className={ ["[NAME]", ...props.additionalClasses || []].join(" ") }>
-
+             data-object-type={ props.type ?? ""}
+             className={ `[NAME] ${props.size} more utility classes` }>
         </div>
     )
 
 }
 
-/// TODO: Adjust!
-const utilityClasses = [
-    "red",
-    "blue"
+/// TODO: add more utility classes if needed!
+
+/// TODO: Adjust and extend!
+const sizes = [
+    "small",
+    "medium",
+    "large"
 ]
 
-/// TODO: Adjust
+/// TODO: Adjust and extend
 const exceptionClasses = [
     "button",
     "regular"
 ]
 
-    [NAME].propTypes = {
+[NAME].propTypes = {
     testID: PropTypes.string,
-    exceptionType: PropTypes.oneOf(exceptionClasses),
-    utilityClasses: PropTypes.arrayOf(PropTypes.oneOf(utilityClasses)),
+    type: PropTypes.oneOf(exceptionClasses),
+    size: PropTypes.oneOf(sizes),
 }
 
 export default [NAME]
