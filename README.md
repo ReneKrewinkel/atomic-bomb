@@ -15,7 +15,7 @@ yarn add -D atomic-bomb
 
 ## Usage: 
 ```shell
-atomic-bomb --type atom|molecule|organism|page --name [Name]  
+atomic-bomb --type atom|molecule|organism|page --name [Name](,[NAME],[NAME])  
 ```   
 
 
@@ -23,6 +23,11 @@ atomic-bomb --type atom|molecule|organism|page --name [Name]
 ```shell
 atomic-bomb --type atom --name Label
 atomic-bomb --type molecule --name Header
+```
+
+## Add multiple
+```shell
+atomic-bomb --type atom --name Label,Button,Input
 ```
 
 ## Output
