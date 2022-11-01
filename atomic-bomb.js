@@ -80,7 +80,8 @@ const createComponentDir = (name, dir) =>  {
 const processTemplates = (type, name, dest) => {
 
     const icons = { atom: '⚛️', molecule: '🔅',
-        organism: '🐙', page: '𝍌' }
+                    organism: '🐙', template: '⊟',
+                    page: '𝍌' }
 
     try {
         const base = `${componentsPath}/${type}s`
