@@ -45,7 +45,7 @@ const showCopyright = () => {
 const packagePath = "./package.json"
 const srcPath = "./src"
 const componentsPath = `${srcPath}/components`
-const validOptions = ["atom", "molecule", "organism", "page"]
+const validOptions = ["atom", "molecule", "organism", "templates", "page"]
 
 const checkPackageJson = () => {
     if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
