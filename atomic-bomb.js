@@ -45,7 +45,7 @@ const showCopyright = () => {
 const packagePath = "./package.json"
 const srcPath = "./src"
 const componentsPath = `${srcPath}/components`
-const validOptions = ["atom", "molecule", "organism", "templates", "page"]
+const validOptions = ["atom", "molecule", "organism", "template", "page"]
 
 const checkPackageJson = () => {
     if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
@@ -128,11 +128,6 @@ const processArgs = (args) => {
 
     const argv = yargs(hideBin(args)).argv
     try {
-
-        if(argv.type === "version") {
-            console.log(chalk.green(`🐣${appName} ${appVersion}`))
-            process.exit(0)
-        }
 
         if (!argv.type || !argv.name) error(usage)
         if (validOptions.indexOf(argv.type.toLowerCase()) === -1) error(usage)
