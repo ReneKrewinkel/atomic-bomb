@@ -128,13 +128,17 @@ const processArgs = (args) => {
 
     const argv = yargs(hideBin(args)).argv
     try {
+
+        if(argv.type === "version") {
+            console.log(chalk.green(`🐣${appName} ${appVersion}`))
+            process.exit(0)
+        }
+
         if (!argv.type || !argv.name) error(usage)
         if (validOptions.indexOf(argv.type.toLowerCase()) === -1) error(usage)
 
         const names = argv.name.split(",")
-        console.log(names)
         const realNames = names.map(item => convertToPascalCase(item))
-        console.log(realNames)
 
         return([argv.type.toLowerCase(), realNames ])
     } catch(err) {
