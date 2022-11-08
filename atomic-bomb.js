@@ -2,7 +2,8 @@
 
 import figlet from 'figlet'
 import chalk from 'chalk'
-import fs from 'fs'
+//import fs from 'fs'
+import fs from 'fs-extra'
 import * as url from 'url'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
@@ -60,14 +61,14 @@ const checkReact = () => {
 
 const checkAndCreateDir = (dir) => {
     const d = dir.replace("//", "/")
-    if (!fs.existsSync(d)) fs.mkdirSync(d, 0o744);
+    fs.ensureDirSync(dir,0o744)
     check(`${d} directory present`)
 }
 
 const createAtomicDirs = () =>  {
     validOptions.forEach( item => {
         const theDir = `${componentsPath}/${item}s`
-        checkAndCreateDir(theDir)
+        fs.ensureFileSync(`${theDir}/_index.scss`,'')
     })
 }
 
@@ -101,7 +102,7 @@ const processTemplates = (type, name, dest) => {
 
 }
 
-const startUp = (type, names) => {
+const run = (type, names) => {
 
 
     figlet(appBanner, (err, data) => {
@@ -144,4 +145,4 @@ const processArgs = (args) => {
 
 
 const [type, name] = processArgs(process.argv)
-startUp(type, name)
+run(type, name)
