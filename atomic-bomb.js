@@ -154,14 +154,16 @@ const processArgs = (args) => {
     const argv = yargs(hideBin(args)).argv
     try {
 
-        if (!argv.type || !argv.name || !argv.platform ) error(usage)
-        if (validOptions.indexOf(argv.type.toLowerCase()) === -1) error(usage)
+        if ( !argv.name  ) error(usage)
+
+        const platform = argv.platform ? argv.platform.toLowerCase() : "react"
+        const type = argv.type ? argv.type.toLowerCase() : "atom"
+        if (validOptions.indexOf(type) === -1) error(usage)
 
         const names = argv.name.split(",")
         const realNames = names.map(item => convertToPascalCase(item))
-        const platform = argv.platform.toLowerCase()
 
-        return([platform, argv.type.toLowerCase(), realNames ])
+        return([platform, type, realNames ])
     } catch(err) {
         error(usage)
     }

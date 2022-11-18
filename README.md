@@ -33,6 +33,12 @@ atomic-bomb --platform react --type molecule --name Header
 atomic-bomb --platform react --type atom --name Label,Button,Input
 ```
 
+## Shorthand
+```
+atomic-bomb --name Label
+```
+Defaults to `--platform react` and `--type atom`
+
 ## Output (React)
 ```shell
 [PROJECT_ROOT]/src/components
