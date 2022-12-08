@@ -2,12 +2,10 @@
 
 import figlet from 'figlet'
 import chalk from 'chalk'
-//import fs from 'fs'
 import fs from 'fs-extra'
 import * as url from 'url'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
-
 import shell from 'shelljs'
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url)).slice(0, -1)
@@ -31,9 +29,9 @@ const readConfig = () => {
     ])
 }
 
-const [appName, appBanner,
-    appVersion, appAuthor,
-    templateRep] = readConfig()
+const [ appName, appBanner,
+        appVersion, appAuthor,
+        templateRep ] = readConfig()
 
 const check = (msg) => {
     console.log(`✅ ${msg}`)
@@ -50,12 +48,48 @@ const showCopyright = () => {
 
 /// Project functions
 const packagePath = "./package.json"
-//const srcPath = "./src"
-//const componentsPath = `${srcPath}/components`
+const dotFile = "./.atomic-bomb"
+
 const validOptions = ["atom", "molecule", "organism", "template", "page"]
-const platforms = ["react", "react-native", "vue", "angular", "svelte"]
+//const platforms = ["react", "react-native", "react-electron", "vue", "angular", "svelte"]
 
 let componentsPath = ""
+let search = ""
+
+
+const createDotFile = (platform) => {
+    if(!fs.existsSync(dotFile)) {
+        const config = fs.readFileSync(`${templatePath}/${platform}.json`, 'utf-8')
+        fs.writeFileSync(".atomic-bomb", config)
+    }
+}
+
+const readDotFile = () => {
+    if(fs.existsSync(dotFile)) {
+
+        try {
+            const result = fs.readFileSync(dotFile, 'utf-8')
+            const config = JSON.parse(result)
+            const { search, platform, destination } = config
+
+            return([platform, search, destination])
+        } catch( err ) {
+            error(`.atomic-bomb: oops, ${err.message}`)
+        }
+    }
+    return false
+}
+
+const isHidden = ({ name }) => {
+    const fileHidden = /^\./.test(name);
+    return(fileHidden)
+}
+const pullPlatforms = () => {
+    const pTypes = fs.readdirSync(templatePath, { withFileTypes: true})
+        .filter( dir => dir.isDirectory() && !isHidden(dir) )
+        .map( dir => dir.name )
+    return(pTypes)
+}
 
 const checkPackageJson = () => {
     if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
@@ -74,9 +108,9 @@ const checkAndCreateDir = (dir) => {
     check(`${d} directory present`)
 }
 
-const createAtomicDirs = () =>  {
+const createAtomicDirs = (dir) =>  {
     validOptions.forEach( item => {
-        const theDir = `${componentsPath}/${item}s`
+        const theDir = `${dir}/${item}s`
         fs.ensureFileSync(`${theDir}/_index.scss`,'')
     })
 }
@@ -87,14 +121,14 @@ const createComponentDir = (name, dir) =>  {
 }
 
 
-const processTemplates = (platform, type, name, dest) => {
+const processTemplates = (platform, type, name, dest, dir) => {
 
     const icons = { atom: '⚛️', molecule: '🔅',
                     organism: '🐙', template: '⊟',
                     page: '𝍌' }
 
     try {
-        const base = `${componentsPath}/${type}s`
+        const base = `${dir}/${type}s`
         const files = fs.readdirSync(`${templatePath}/${platform}`)
         files.forEach(file => {
             const fName = file.replace('[NAME]', name)
@@ -116,7 +150,9 @@ const checkPlatform = (platform) => {
         error(`Platform "${platform}" does not exist (yet). You might want to open a PR?`)
     }
     const result = fs.readFileSync(`${templatePath}/${platform}.json`, 'utf-8')
-    componentsPath = JSON.parse(result).destination
+    const settings = JSON.parse(result)
+    componentsPath = settings.destination
+    search = settings.search
 }
 
 const pullRepository = () => {
@@ -126,20 +162,20 @@ const pullRepository = () => {
 
 const run = (platform, type, names) => {
 
-
     figlet(appBanner, (err, data) => {
         console.log(chalk.green(`${data}`))
         checkPlatform(platform)
+        createDotFile(platform)
+        const [ p, s, d ] = readDotFile()
         checkPackageJson()
-        checkPlatformType(platform)
-        //checkAndCreateDir(srcPath)
-        checkAndCreateDir(componentsPath)
-        createAtomicDirs()
+        checkPlatformType(s)
+        checkAndCreateDir(d)
+        createAtomicDirs(d)
 
         names.forEach(name => {
-            const targetDir = `${componentsPath}/${type}s/${name}`
+            const targetDir = `${d}/${type}s/${name}`
             createComponentDir(`${type}/${name}`, targetDir)
-            processTemplates(platform, type, name, targetDir)
+            processTemplates(platform, type, name, targetDir, d)
         })
 
         showCopyright()
@@ -154,23 +190,33 @@ const processArgs = (args) => {
     const argv = yargs(hideBin(args)).argv
     try {
 
-        if ( !argv.name  ) error(usage)
+        let platform
 
-        const platform = argv.platform ? argv.platform.toLowerCase() : "react"
+        if(!argv.name) error(usage)
+
+        if(!readDotFile()) {
+            platform = argv.platform ? argv.platform.toLowerCase() : "react"
+        } else {
+            [ platform ] = readDotFile()
+        }
+
+        if(platforms.indexOf(platform) === -1) error(usage)
+
         const type = argv.type ? argv.type.toLowerCase() : "atom"
         if (validOptions.indexOf(type) === -1) error(usage)
 
         const names = argv.name.split(",")
         const realNames = names.map(item => convertToPascalCase(item))
 
-        return([platform, type, realNames ])
+        return([platform, type, realNames])
+
     } catch(err) {
         error(usage)
     }
 }
 
 pullRepository()
-
+const platforms = pullPlatforms()
 const [platform, type, name] = processArgs(process.argv)
 run(platform, type, name)
 
