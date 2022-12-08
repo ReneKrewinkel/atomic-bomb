@@ -42,6 +42,12 @@ const error = (msg) => {
     process.exit(1)
 }
 
+const usage = () => {
+    const msg =`USAGE: ${appName} \n\t--platform ${platforms.join("|") } \n\t--type ${ validOptions.join("|") } \n\t--name [NAME](,[NAME],[NAME])\n`
+    console.log(chalk.greenBright(`🤙 ${msg}`))
+    process.exit(2)
+}
+
 const showCopyright = () => {
     console.log(`\n\n💥 ${ appName } v${ appVersion } © ${ appAuthor } \n`)
 }
@@ -185,14 +191,13 @@ const run = (platform, type, names) => {
 
 const processArgs = (args) => {
 
-    const usage =`USAGE: ${appName} \n\t--platform ${platforms.join("|") } \n\t--type ${ validOptions.join("|") } \n\t--name [NAME](,[NAME],[NAME])`
 
     const argv = yargs(hideBin(args)).argv
     try {
 
         let platform
 
-        if(!argv.name) error(usage)
+        if(!argv.name) usage()
 
         if(!readDotFile()) {
             platform = argv.platform ? argv.platform.toLowerCase() : "react"
@@ -200,10 +205,10 @@ const processArgs = (args) => {
             [ platform ] = readDotFile()
         }
 
-        if(platforms.indexOf(platform) === -1) error(usage)
+        if(platforms.indexOf(platform) === -1) usage()
 
         const type = argv.type ? argv.type.toLowerCase() : "atom"
-        if (validOptions.indexOf(type) === -1) error(usage)
+        if (validOptions.indexOf(type) === -1) usage()
 
         const names = argv.name.split(",")
         const realNames = names.map(item => convertToPascalCase(item))
@@ -211,7 +216,7 @@ const processArgs = (args) => {
         return([platform, type, realNames])
 
     } catch(err) {
-        error(usage)
+        usage()
     }
 }
 
