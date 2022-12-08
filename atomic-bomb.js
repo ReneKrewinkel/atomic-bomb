@@ -7,6 +7,7 @@ import * as url from 'url'
 import yargs from 'yargs'
 import { hideBin } from 'yargs/helpers'
 import shell from 'shelljs'
+import { z } from 'zod'
 
 const __dirname = url.fileURLToPath(new URL('.', import.meta.url)).slice(0, -1)
 
@@ -49,7 +50,7 @@ const usage = () => {
 }
 
 const showCopyright = () => {
-    console.log(`\n\n💥 ${ appName } v${ appVersion } © ${ appAuthor } \n`)
+    console.log(`\n💥 ${ appName } v${ appVersion } © ${ appAuthor } \n`)
 }
 
 /// Project functions
@@ -62,6 +63,11 @@ const validOptions = ["atom", "molecule", "organism", "template", "page"]
 let componentsPath = ""
 let search = ""
 
+const configSchema = z.object({
+    search: z.string(),
+    platform: z.string(),
+    destination: z.string()
+})
 
 const createDotFile = (platform) => {
     if(!fs.existsSync(dotFile)) {
@@ -73,14 +79,21 @@ const createDotFile = (platform) => {
 const readDotFile = () => {
     if(fs.existsSync(dotFile)) {
 
+
         try {
             const result = fs.readFileSync(dotFile, 'utf-8')
             const config = JSON.parse(result)
+            const parsedConfig = configSchema.parse(config)
             const { search, platform, destination } = config
-
             return([platform, search, destination])
         } catch( err ) {
-            error(`.atomic-bomb: oops, ${err.message}`)
+            let msg = err.message
+            if (err instanceof z.ZodError) {
+                msg =  '\n\t - ' +
+                        err.issues.map( item => `${ item.path[0] }: ${item.message}`.toLowerCase())
+                                  .join('\n\t - ')
+            }
+            error(`.atomic-bomb: oops: ${msg}`)
         }
     }
     return false
@@ -172,16 +185,16 @@ const run = (platform, type, names) => {
         console.log(chalk.green(`${data}`))
         checkPlatform(platform)
         createDotFile(platform)
-        const [ p, s, d ] = readDotFile()
+        const [ p, search, dir ] = readDotFile()
         checkPackageJson()
-        checkPlatformType(s)
-        checkAndCreateDir(d)
-        createAtomicDirs(d)
+        checkPlatformType(search)
+        checkAndCreateDir(dir)
+        createAtomicDirs(dir)
 
         names.forEach(name => {
-            const targetDir = `${d}/${type}s/${name}`
+            const targetDir = `${dir}/${type}s/${name}`
             createComponentDir(`${type}/${name}`, targetDir)
-            processTemplates(platform, type, name, targetDir, d)
+            processTemplates(platform, type, name, targetDir, dir)
         })
 
         showCopyright()
@@ -190,7 +203,6 @@ const run = (platform, type, names) => {
 
 
 const processArgs = (args) => {
-
 
     const argv = yargs(hideBin(args)).argv
     try {
