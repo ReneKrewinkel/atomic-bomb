@@ -80,7 +80,6 @@ const createDotFile = (platform) => {
 const readDotFile = () => {
     if(fs.existsSync(dotFile)) {
 
-
         try {
             const result = fs.readFileSync(dotFile, 'utf-8')
             const config = JSON.parse(result)
@@ -176,6 +175,17 @@ const checkPlatform = (platform) => {
     search = settings.search
 }
 
+const createWorkflow = () => {
+    if( !fs.existsSync('./.github')
+     && !fs.existsSync('./.github/workflows')
+     && !fs.existsSync('./.github/workflows/atomic-todo-to-issue.yml')
+    ) {
+        const result = fs.readFileSync(`${__dirname}/workflows/atomic-todo-to-issue.yml`, 'utf-8')
+        fs.ensureDirSync(`./.github/workflows`, 0o744)
+        fs.writeFileSync(`./.github/workflows/atomic-todo-to-issue.yml`, result)
+    }
+}
+
 const pullRepository = () => {
    fs.rmSync(templatePath, { recursive:true, force: true})
    if(shell.exec(`git clone --quiet ${templateRep} ${templatePath}`).code !== 0) error("Code templates not available")
@@ -188,6 +198,7 @@ const run = (platform, type, names) => {
 
         checkPlatform(platform)
         createDotFile(platform)
+        createWorkflow()
         const [ p, search, dir ] = readDotFile()
         checkPackageJson()
         checkPlatformType(search)
