@@ -66,7 +66,8 @@ let search = ""
 const configSchema = z.object({
     search: z.string(),
     platform: z.string(),
-    destination: z.string()
+    destination: z.string(),
+    scss: z.boolean()
 })
 
 const createDotFile = (platform) => {
@@ -84,8 +85,8 @@ const readDotFile = () => {
             const result = fs.readFileSync(dotFile, 'utf-8')
             const config = JSON.parse(result)
             const parsedConfig = configSchema.parse(config)
-            const { search, platform, destination } = config
-            return([platform, search, destination])
+            const { search, platform, destination, scss } = config
+            return([platform, search, destination, scss ? scss : false])
         } catch( err ) {
             let msg = err.message
             if (err instanceof z.ZodError) {
@@ -130,7 +131,8 @@ const checkAndCreateDir = (dir) => {
 const createAtomicDirs = (dir) =>  {
     validOptions.forEach( item => {
         const theDir = `${dir}/${item}s`
-        fs.ensureFileSync(`${theDir}/_index.scss`,'')
+        fs.ensureDirSync(`${theDir}`)
+        if (scss) fs.ensureFileSync(`${theDir}/_index.scss`,'')
     })
 }
 
@@ -157,7 +159,7 @@ const processTemplates = (platform, type, name, dest, dir) => {
             const result2 = result.replace(/\[TYPE\]/g, `${type}s`)
             fs.writeFileSync(`${dest}/${fName}`, result2)
         })
-        fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
+        if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
     } catch(err)  {
         error(`oops, ${err.message}`)
     }
@@ -183,6 +185,7 @@ const run = (platform, type, names) => {
 
     figlet(appBanner, (err, data) => {
         console.log(chalk.green(`${data}`))
+
         checkPlatform(platform)
         createDotFile(platform)
         const [ p, search, dir ] = readDotFile()
@@ -207,14 +210,14 @@ const processArgs = (args) => {
     const argv = yargs(hideBin(args)).argv
     try {
 
-        let platform
+        let platform, search, dest, scss = false
 
         if(!argv.name) usage()
 
         if(!readDotFile()) {
             platform = argv.platform ? argv.platform.toLowerCase() : "react"
         } else {
-            [ platform ] = readDotFile()
+            [ platform, search, dest, scss ] = readDotFile()
         }
 
         if(platforms.indexOf(platform) === -1) usage()
@@ -225,7 +228,7 @@ const processArgs = (args) => {
         const names = argv.name.split(",")
         const realNames = names.map(item => convertToPascalCase(item))
 
-        return([platform, type, realNames])
+        return([platform, type, realNames, scss])
 
     } catch(err) {
         usage()
@@ -234,7 +237,7 @@ const processArgs = (args) => {
 
 pullRepository()
 const platforms = pullPlatforms()
-const [platform, type, name] = processArgs(process.argv)
+const [platform, type, name, scss] = processArgs(process.argv)
 run(platform, type, name)
 
 
