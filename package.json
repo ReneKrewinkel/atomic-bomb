@@ -4,6 +4,7 @@
   "description": "A small CLI tool to create atoms, molecules and organisms in a NodeJS app",
   "main": "atomic-bomb.js",
   "type": "module",
+  "deprecated": "Please upgrade",
   "repository": {
     "type": "git",
     "url": "https://github.com/ReneKrewinkel/atomic-bomb.git"
@@ -12,9 +13,9 @@
     "templates": "https://github.com/ReneKrewinkel/atomic-bomb-templates.git"
   },
   "scripts": {
+    "deprecate": "echo npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
     "predeploy": "git add --all && git commit --allow-empty  -m $npm_package_version",
-    "deploy": "git push",
-    "postdeploy": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\""
+    "deploy": "git push"
   },
   "files": [
     "templates/*",
