@@ -19,3 +19,7 @@ jobs:
       - name: Print release output
         if: ${{ steps.release.outputs.released == 'true' }}
         run: echo Release ID ${{ steps.release.outputs.release_id }}
+      - name: Delete Older Releases
+        uses: dev-drprasad/delete-older-releases@v0.2.1
+        with:
+          keel_latest: 1
