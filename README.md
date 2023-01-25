@@ -29,7 +29,7 @@ yarn add -D atomic-bomb
 atomic-bomb --platform react --type atom|molecule|organism|template|page --name [NAME](,[NAME],[NAME])  
 ```   
 
-`--platform` is soon to be extended with Angular, Vue and Svelte.
+`--platform` can be extended.
 Please head over to [Templates](https://github.com/ReneKrewinkel/atomic-bomb-templates) and open a pull request if you want to 
 contribute to more templates. 
 
@@ -43,6 +43,25 @@ atomic-bomb --platform react --type molecule --name Header
 ```shell
 atomic-bomb --platform react --type atom --name Label,Button,Input
 ```
+
+## dot-file
+`atomic-bomb` creates a dot-file (`.atomic-bomb`) in the root 
+of your project. You can configure the defaults in this file 
+so you can omit the platform definition. You can also modify 
+the base location of your `atoms`, `molecules` etc. directories.
+Default content: 
+```json
+{
+  "search": "react",
+  "platform": "react",
+  "destination": "src/components",
+  "scss": true
+}
+```
+* `search`: package to search for in `package.json` to determine if `atomic-bomb` can be used
+* `platform`: shorthand for the `--platform` flag
+* `destination`: directory where the atomic-dirs are put.
+* `scss`: if an `_index.scss` in each atomic-dir should be created.
 
 ## Shorthand
 ```
