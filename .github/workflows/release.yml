@@ -22,4 +22,4 @@ jobs:
       - name: Delete Older Releases
         uses: dev-drprasad/delete-older-releases@v0.2.1
         with:
-          keel_latest: 1
+          keep_latest: 1
