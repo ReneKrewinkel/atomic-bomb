@@ -12,7 +12,7 @@
     "templates": "https://github.com/ReneKrewinkel/atomic-bomb-templates.git"
   },
   "scripts": {
-    "predeploy": "git add --all && git commit -m $npm_package_version",
+    "predeploy": "git add --all && git commit --allow-empty  -m $npm_package_version",
     "deploy": "git push",
     "postdeploy": "npm unpublish atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\""
   },
