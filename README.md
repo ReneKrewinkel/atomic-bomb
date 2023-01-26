@@ -5,15 +5,12 @@ This commandline tool creates boilerplate atomic design components for React app
 
 > **IMPORTANT** This tool is for educational purposes only. 
 
-> ## UDATE VERSION 4.1.1
+> ## UPDATE VERSION 4.x.x
 > * Added `scss` flag to `.atomic-bomb` config to control if scss files are generated. 
 > * Automatically creates a GitHub workflow file for converting **TODO**'s to issues 
-
-> ## UPDATE VERSION 4.n
 > * Gets valid platforms from template repository
 > * Writes configuration to `.atomic-bomb` file in the project-root
 > * Reads configuration from `.atomic-bomb` where you can manually set `search`, `platform` and `destination`-directory.
-> 
 
 
 ## Install
