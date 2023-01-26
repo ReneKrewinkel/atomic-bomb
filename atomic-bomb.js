@@ -226,6 +226,7 @@ const processArgs = (args) => {
         if(!argv.name) usage()
 
         if(!readDotFile()) {
+            scss = true
             platform = argv.platform ? argv.platform.toLowerCase() : "react"
         } else {
             [ platform, search, dest, scss ] = readDotFile()
