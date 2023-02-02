@@ -1,2 +1,2 @@
-npm deprecate atomic-bomb@"<4.1.1" "Please upgrade"
-npm unpublish atomic-bomb@"<4.1.0"
+npm deprecate atomic-bomb@"<4.2.1" "Please upgrade"
+npm unpublish atomic-bomb@"<4.2.1"

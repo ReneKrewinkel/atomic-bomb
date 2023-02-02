@@ -28,7 +28,7 @@ atomic-bomb --platform react --type atom|molecule|organism|template|page --name 
 
 `--platform` can be extended.
 Please head over to [Templates](https://github.com/ReneKrewinkel/atomic-bomb-templates) and open a pull request if you want to 
-contribute to more templates. 
+contribute to more templates. There is a list of supported platforms in the [README](https://github.com/ReneKrewinkel/atomic-bomb-templates).
 
 ## Example 
 ```shell
@@ -64,13 +64,12 @@ Default content:
 ```
 atomic-bomb --name Label
 ```
-Defaults to `--platform react` and `--type atom`
+Defaults to `--platform react` (`platform` in the `.atomic-bomb`-file) and `--type atom`
 
 ## Output (React)
 ```shell
 [PROJECT_ROOT]/src/components
 ├── atoms
-│   ├── _atoms.scss
 │   ├── Label
 │   │   ├── Label.js
 │   │   ├── Label.stories.js
@@ -80,7 +79,6 @@ Defaults to `--platform react` and `--type atom`
 │   │   └── index.js
 │   └── _index.scss
 └── molecules
-    ├── _molecules.scss
     ├── Header    
     │   ├── Header.js
     │   ├── Header.stories.js

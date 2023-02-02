@@ -13,7 +13,7 @@
     "templates": "https://github.com/ReneKrewinkel/atomic-bomb-templates.git"
   },
   "scripts": {
-    "deprecate": "echo npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
+    "deprecate": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
     "predeploy": "git add --all && git commit --allow-empty  -m $npm_package_version",
     "deploy": "git push"
   },
