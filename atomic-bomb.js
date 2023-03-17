@@ -116,9 +116,13 @@ const checkPackageJson = () => {
 }
 
 const checkPlatformType = (platform) => {
-    const result = fs.readFileSync(packagePath, 'utf8')
-    if(!JSON.parse(result).dependencies[platform]) error(`${platform} not installed`)
-    check(`react ${ JSON.parse(result).dependencies.react.replace('^', '') } is installed`)
+    try {
+        const result = fs.readFileSync(packagePath, 'utf8')
+        if (!JSON.parse(result).dependencies[platform]) error(`${platform} not installed`)
+        check(`react ${JSON.parse(result).dependencies.react.replace('^', '')} is installed`)
+    } catch(err) {
+        error(`Failure processing package.json: ${err.msg}`)
+    }
 }
 
 const checkAndCreateDir = (dir) => {
