@@ -111,7 +111,7 @@ const pullPlatforms = () => {
 }
 
 const checkPackageJson = () => {
-    if(!fs.existsSync(packagePath)) error("package.json doesn't exist")
+    if(!fs.existsSync(packagePath)) error("package.json doesn't exist, please run atomic-bomb in the root of your project")
     check("package.json is available")
 }
 
@@ -121,7 +121,7 @@ const checkPlatformType = (platform) => {
         if (!JSON.parse(result).dependencies[platform]) error(`${platform} not installed`)
         check(`react ${JSON.parse(result).dependencies.react.replace('^', '')} is installed`)
     } catch(err) {
-        error(`Failure processing package.json: ${err.msg}`)
+        error(`Failure processing package.json`)
     }
 }
 
