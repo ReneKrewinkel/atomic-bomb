@@ -5,6 +5,14 @@ This commandline tool creates boilerplate atomic design components for React app
 
 > **IMPORTANT** This tool is for educational purposes only. 
 
+> ## UPDATE VERSION 5.x.x (experimental)
+> * Added `extension` to `.atomic-bomb` config
+> * Creates a `index.<ext>` file for each atomic-dir, so you can (for example) use: 
+> ```javascript
+> import { Label, Logo } from '../atoms'
+> ```
+
+
 > ## UPDATE VERSION 4.x.x
 > * Added `scss` flag to `.atomic-bomb` config to control if scss files are generated. 
 > * Automatically creates a GitHub workflow file for converting **TODO**'s to issues 
@@ -50,12 +58,14 @@ Default content:
 ```json
 {
   "search": "react",
+  "extension": "js | jsx | ts | tsx",
   "platform": "react",
   "destination": "src/components",
   "scss": true
 }
 ```
 * `search`: package to search for in `package.json` to determine if `atomic-bomb` can be used
+* `extension`: Add the extension you want your files to have (defaults to `.js`)
 * `platform`: shorthand for the `--platform` flag
 * `destination`: directory where the atomic-dirs are put.
 * `scss`: if an `_index.scss` in each atomic-dir should be created.

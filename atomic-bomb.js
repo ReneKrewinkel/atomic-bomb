@@ -58,13 +58,13 @@ const packagePath = "./package.json"
 const dotFile = "./.atomic-bomb"
 
 const validOptions = ["atom", "molecule", "organism", "template", "page"]
-//const platforms = ["react", "react-native", "react-electron", "vue", "angular", "svelte"]
 
 let componentsPath = ""
 let search = ""
 
 const configSchema = z.object({
     search: z.string(),
+    extension: z.string().optional(),
     platform: z.string(),
     destination: z.string(),
     scss: z.boolean()
@@ -84,8 +84,8 @@ const readDotFile = () => {
             const result = fs.readFileSync(dotFile, 'utf-8')
             const config = JSON.parse(result)
             const parsedConfig = configSchema.parse(config)
-            const { search, platform, destination, scss } = config
-            return([platform, search, destination, scss ? scss : false])
+            const { search, extension, platform, destination, scss } = parsedConfig
+            return([platform, search, extension ? extension : 'js', destination, scss ? scss : false])
         } catch( err ) {
             let msg = err.message
             if (err instanceof z.ZodError) {
@@ -145,8 +145,7 @@ const createComponentDir = (name, dir) =>  {
 }
 
 
-const processTemplates = (platform, type, name, dest, dir) => {
-
+const processTemplates = (platform, type, name, dest, dir, ext) => {
     const icons = { atom: '⚛️', molecule: '🔅',
                     organism: '🐙', template: '⊟',
                     page: '𝍌' }
@@ -156,13 +155,14 @@ const processTemplates = (platform, type, name, dest, dir) => {
         const files = fs.readdirSync(`${templatePath}/${platform}`)
         files.forEach(file => {
             const fName = file.replace('[NAME]', name)
-            check(`${icons[type]} ${type}s/${fName}`);
+            check(`${icons[type]} ${type}s/${name}/${fName}`);
             const content = fs.readFileSync(`${templatePath}/${platform}/${file}`, 'utf8')
             const result = content.replace(/\[NAME\]/g, name)
             const result2 = result.replace(/\[TYPE\]/g, `${type}s`)
             fs.writeFileSync(`${dest}/${fName}`, result2)
         })
         if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
+        if (ext) fs.appendFileSync(`${base}/index.${ext}`, `\nexport { default as ${name} } from './${name}'`)
     } catch(err)  {
         error(`oops, ${err.message}`)
     }
@@ -203,7 +203,7 @@ const run = (platform, type, names) => {
         checkPlatform(platform)
         createDotFile(platform)
         createWorkflow()
-        const [ p, search, dir ] = readDotFile()
+        const [ p, search, extension, dir, scss ] = readDotFile()
         checkPackageJson()
         checkPlatformType(search)
         checkAndCreateDir(dir)
@@ -212,7 +212,7 @@ const run = (platform, type, names) => {
         names.forEach(name => {
             const targetDir = `${dir}/${type}s/${name}`
             createComponentDir(`${type}/${name}`, targetDir)
-            processTemplates(platform, type, name, targetDir, dir)
+            processTemplates(platform, type, name, targetDir, dir, extension)
         })
 
         showCopyright()
@@ -225,7 +225,7 @@ const processArgs = (args) => {
     const argv = yargs(hideBin(args)).argv
     try {
 
-        let platform, search, dest, scss = false
+        let platform, extension, search, dest, scss = false
 
         if(!argv.name) usage()
 
@@ -233,7 +233,7 @@ const processArgs = (args) => {
             scss = true
             platform = argv.platform ? argv.platform.toLowerCase() : "react"
         } else {
-            [ platform, search, dest, scss ] = readDotFile()
+            [ platform, extension, search, dest, scss ] = readDotFile()
         }
 
         if(platforms.indexOf(platform) === -1) usage()

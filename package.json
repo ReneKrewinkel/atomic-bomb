@@ -1,6 +1,6 @@
 {
   "name": "atomic-bomb",
-  "version": "4.2.4",
+  "version": "5.0.0",
   "description": "A small CLI tool to create atoms, molecules and organisms in a NodeJS app",
   "main": "atomic-bomb.js",
   "type": "module",
