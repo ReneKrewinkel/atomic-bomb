@@ -1,7 +1,7 @@
 # Atomic Bomb
 This commandline tool creates boilerplate atomic design components for React apps.
 
-<img src='./atomic-bomb-logo.png' style="width: 100%;" alt="AtomicBomb">
+<img src='./atomic-bomb-logo.png' style="width: 220px;" alt="AtomicBomb">
 
 > **IMPORTANT** This tool is for educational purposes only. 
 
