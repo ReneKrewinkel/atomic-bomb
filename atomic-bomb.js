@@ -1,260 +1,287 @@
 #!/usr/bin/env node
 
-import figlet from 'figlet'
-import chalk from 'chalk'
-import fs from 'fs-extra'
-import * as url from 'url'
-import yargs from 'yargs'
-import { hideBin } from 'yargs/helpers'
-import shell from 'shelljs'
-import { z } from 'zod'
+import figlet from "figlet";
+import chalk from "chalk";
+import fs from "fs-extra";
+import * as url from "url";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
+import shell from "shelljs";
+import { z } from "zod";
 
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url)).slice(0, -1)
+const __dirname = url.fileURLToPath(new URL(".", import.meta.url)).slice(0, -1);
 
-const appPackage = `${__dirname}/package.json`
-const templatePath = `${__dirname}/templates`
+const appPackage = `${__dirname}/package.json`;
+const templatePath = `${__dirname}/templates`;
 
 const convertToPascalCase = (s) => {
-    const r = s.replace(/\w+/g, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase())
-    return(r.split(' ').join(''))
-}
+  const r = s.replace(
+    /\w+/g,
+    (word) => word[0].toUpperCase() + word.slice(1).toLowerCase(),
+  );
+  return r.split(" ").join("");
+};
 
 const readConfig = () => {
-    const cfg = JSON.parse(fs.readFileSync(appPackage, 'utf8'))
-    return([
-        cfg.name,
-        convertToPascalCase(cfg.name.replace('-', ' ')),
-        cfg.version,
-        cfg.author,
-        cfg.config.templates
-    ])
-}
+  const cfg = JSON.parse(fs.readFileSync(appPackage, "utf8"));
+  return [
+    cfg.name,
+    convertToPascalCase(cfg.name.replace("-", " ")),
+    cfg.version,
+    cfg.author,
+    cfg.config.templates,
+  ];
+};
 
-const [ appName, appBanner,
-        appVersion, appAuthor,
-        templateRep ] = readConfig()
+const [appName, appBanner, appVersion, appAuthor, templateRep] = readConfig();
 
 const check = (msg) => {
-    console.log(`✅ ${msg}`)
-}
+  console.log(`✅ ${msg}`);
+};
 
 const error = (msg) => {
-    console.log(chalk.red(`💀 ${msg}`))
-    process.exit(1)
-}
+  console.log(chalk.red(`💀 ${msg}`));
+  process.exit(1);
+};
 
 const usage = () => {
-    const msg =`USAGE: ${appName} \n\t--platform ${platforms.join("|") } \n\t--type ${ validOptions.join("|") } \n\t--name [NAME](,[NAME],[NAME])\n`
-    console.log(chalk.greenBright(`🤙 ${msg}`))
-    process.exit(2)
-}
+  const msg = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validOptions.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n`;
+  console.log(chalk.greenBright(`🤙 ${msg}\n\nhttps://atomic-bomb.io`));
+  process.exit(2);
+};
 
 const showCopyright = () => {
-    console.log(`\n💥 ${ appName } v${ appVersion } © ${ appAuthor } \n`)
-}
+  console.log(`\n💥 ${appName} v${appVersion} © ${appAuthor} \n`);
+};
 
 /// Project functions
-const packagePath = "./package.json"
-const dotFile = "./.atomic-bomb"
+const packagePath = "./package.json";
+const dotFile = "./.atomic-bomb";
 
-const validOptions = ["atom", "molecule", "organism", "template", "page"]
+const validOptions = ["atom", "molecule", "organism", "template", "page"];
 
-let componentsPath = ""
-let search = ""
+let componentsPath = "";
+let search = "";
 
 const configSchema = z.object({
-    search: z.string(),
-    extension: z.string().optional(),
-    platform: z.string(),
-    destination: z.string(),
-    scss: z.boolean()
-})
+  search: z.string(),
+  extension: z.string().optional(),
+  platform: z.string(),
+  destination: z.string(),
+  scss: z.boolean(),
+});
 
 const createDotFile = (platform) => {
-    if(!fs.existsSync(dotFile)) {
-        const config = fs.readFileSync(`${templatePath}/${platform}.json`, 'utf-8')
-        fs.writeFileSync(".atomic-bomb", config)
-    }
-}
+  if (!fs.existsSync(dotFile)) {
+    const config = fs.readFileSync(`${templatePath}/${platform}.json`, "utf-8");
+    fs.writeFileSync(".atomic-bomb", config);
+  }
+};
 
 const readDotFile = () => {
-    if(fs.existsSync(dotFile)) {
-
-        try {
-            const result = fs.readFileSync(dotFile, 'utf-8')
-            const config = JSON.parse(result)
-            const parsedConfig = configSchema.parse(config)
-            const { search, extension, platform, destination, scss } = parsedConfig
-            return([platform, search, extension ? extension : 'js', destination, scss ? scss : false])
-        } catch( err ) {
-            let msg = err.message
-            if (err instanceof z.ZodError) {
-                msg =  '\n\t - ' +
-                        err.issues.map( item => `${ item.path[0] }: ${item.message}`.toLowerCase())
-                                  .join('\n\t - ')
-            }
-            error(`.atomic-bomb: oops: ${msg}`)
-        }
+  if (fs.existsSync(dotFile)) {
+    try {
+      const result = fs.readFileSync(dotFile, "utf-8");
+      const config = JSON.parse(result);
+      const parsedConfig = configSchema.parse(config);
+      const { search, extension, platform, destination, scss } = parsedConfig;
+      return [
+        platform,
+        search,
+        extension ? extension : "js",
+        destination,
+        scss ? scss : false,
+      ];
+    } catch (err) {
+      let msg = err.message;
+      if (err instanceof z.ZodError) {
+        msg =
+          "\n\t - " +
+          err.issues
+            .map((item) => `${item.path[0]}: ${item.message}`.toLowerCase())
+            .join("\n\t - ");
+      }
+      error(`.atomic-bomb: oops: ${msg}`);
     }
-    return false
-}
+  }
+  return false;
+};
 
 const isHidden = ({ name }) => {
-    const fileHidden = /^\./.test(name);
-    return(fileHidden)
-}
+  const fileHidden = /^\./.test(name);
+  return fileHidden;
+};
 const pullPlatforms = () => {
-    const pTypes = fs.readdirSync(templatePath, { withFileTypes: true})
-        .filter( dir => dir.isDirectory() && !isHidden(dir) )
-        .map( dir => dir.name )
-    return(pTypes)
-}
+  const pTypes = fs
+    .readdirSync(templatePath, { withFileTypes: true })
+    .filter((dir) => dir.isDirectory() && !isHidden(dir))
+    .map((dir) => dir.name);
+  return pTypes;
+};
 
 const checkPackageJson = () => {
-    if(!fs.existsSync(packagePath)) error("package.json doesn't exist, please run atomic-bomb in the root of your project")
-    check("package.json is available")
-}
+  if (!fs.existsSync(packagePath))
+    error(
+      "package.json doesn't exist, please run atomic-bomb in the root of your project",
+    );
+  check("package.json is available");
+};
 
 const checkPlatformType = (platform) => {
-    try {
-        const result = fs.readFileSync(packagePath, 'utf8')
-        if (!JSON.parse(result).dependencies[platform]) error(`${platform} not installed`)
-        check(`react ${JSON.parse(result).dependencies.react.replace('^', '')} is installed`)
-    } catch(err) {
-        error(`Failure processing package.json`)
-    }
-}
+  try {
+    const result = fs.readFileSync(packagePath, "utf8");
+    if (!JSON.parse(result).dependencies[platform])
+      error(`${platform} not installed`);
+    check(
+      `react ${JSON.parse(result).dependencies.react.replace("^", "")} is installed`,
+    );
+  } catch (err) {
+    error(`Failure processing package.json`);
+  }
+};
 
 const checkAndCreateDir = (dir) => {
-    const d = dir.replace("//", "/")
-    fs.ensureDirSync(dir,0o744)
-    check(`${d} directory present`)
-}
+  const d = dir.replace("//", "/");
+  fs.ensureDirSync(dir, 0o744);
+  check(`${d} directory present`);
+};
 
-const createAtomicDirs = (dir) =>  {
-    validOptions.forEach( item => {
-        const theDir = `${dir}/${item}s`
-        fs.ensureDirSync(`${theDir}`)
-        if (scss) fs.ensureFileSync(`${theDir}/_index.scss`,'')
-    })
-}
+const createAtomicDirs = (dir) => {
+  validOptions.forEach((item) => {
+    const theDir = `${dir}/${item}s`;
+    fs.ensureDirSync(`${theDir}`);
+    if (scss) fs.ensureFileSync(`${theDir}/_index.scss`, "");
+  });
+};
 
-const createComponentDir = (name, dir) =>  {
-    if(fs.existsSync(dir)) error(`${name} Component exists`)
-    checkAndCreateDir(dir)
-}
-
+const createComponentDir = (name, dir) => {
+  if (fs.existsSync(dir)) error(`${name} Component exists`);
+  checkAndCreateDir(dir);
+};
 
 const processTemplates = (platform, type, name, dest, dir, ext) => {
-    const icons = { atom: '⚛️', molecule: '🔅',
-                    organism: '🐙', template: '⊟',
-                    page: '𝍌' }
+  const icons = {
+    atom: "⚛️",
+    molecule: "🔅",
+    organism: "🐙",
+    template: "⊟",
+    page: "𝍌",
+  };
 
-    try {
-        const base = `${dir}/${type}s`
-        const files = fs.readdirSync(`${templatePath}/${platform}`)
-        files.forEach(file => {
-            const fName = file.replace('[NAME]', name)
-            check(`${icons[type]} ${type}s/${name}/${fName}`);
-            const content = fs.readFileSync(`${templatePath}/${platform}/${file}`, 'utf8')
-            const result = content.replace(/\[NAME\]/g, name)
-            const result2 = result.replace(/\[TYPE\]/g, `${type}s`)
-            fs.writeFileSync(`${dest}/${fName}`, result2)
-        })
-        if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@use './${name}';`)
-        if (ext) fs.appendFileSync(`${base}/index.${ext}`, `\nexport { default as ${name} } from './${name}'`)
-    } catch(err)  {
-        error(`oops, ${err.message}`)
-    }
-
-}
+  try {
+    const base = `${dir}/${type}s`;
+    const files = fs.readdirSync(`${templatePath}/${platform}`);
+    files.forEach((file) => {
+      const fName = file.replace("[NAME]", name);
+      check(`${icons[type]} ${type}s/${name}/${fName}`);
+      const content = fs.readFileSync(
+        `${templatePath}/${platform}/${file}`,
+        "utf8",
+      );
+      const result = content.replace(/\[NAME\]/g, name);
+      const result2 = result.replace(/\[TYPE\]/g, `${type}s`);
+      fs.writeFileSync(`${dest}/${fName}`, result2);
+    });
+    if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@use './${name}';`);
+    if (ext)
+      fs.appendFileSync(
+        `${base}/index.${ext}`,
+        `\nexport { default as ${name} } from './${name}'`,
+      );
+  } catch (err) {
+    error(`oops, ${err.message}`);
+  }
+};
 
 const checkPlatform = (platform) => {
-    if(!fs.existsSync(`${templatePath}/${platform}`)) {
-        error(`Platform "${platform}" does not exist (yet). You might want to open a PR?`)
-    }
-    const result = fs.readFileSync(`${templatePath}/${platform}.json`, 'utf-8')
-    const settings = JSON.parse(result)
-    componentsPath = settings.destination
-    search = settings.search
-}
+  if (!fs.existsSync(`${templatePath}/${platform}`)) {
+    error(
+      `Platform "${platform}" does not exist (yet). You might want to open a PR?`,
+    );
+  }
+  const result = fs.readFileSync(`${templatePath}/${platform}.json`, "utf-8");
+  const settings = JSON.parse(result);
+  componentsPath = settings.destination;
+  search = settings.search;
+};
 
 const createWorkflow = () => {
-    if( !fs.existsSync('./.github')
-     && !fs.existsSync('./.github/workflows')
-     && !fs.existsSync('./.github/workflows/atomic-todo-to-issue.yml')
-    ) {
-        const result = fs.readFileSync(`${__dirname}/workflows/atomic-todo-to-issue.yml`, 'utf-8')
-        fs.ensureDirSync(`./.github/workflows`, 0o744)
-        fs.writeFileSync(`./.github/workflows/atomic-todo-to-issue.yml`, result)
-    }
-}
+  if (
+    !fs.existsSync("./.github") &&
+    !fs.existsSync("./.github/workflows") &&
+    !fs.existsSync("./.github/workflows/atomic-todo-to-issue.yml")
+  ) {
+    const result = fs.readFileSync(
+      `${__dirname}/workflows/atomic-todo-to-issue.yml`,
+      "utf-8",
+    );
+    fs.ensureDirSync(`./.github/workflows`, 0o744);
+    fs.writeFileSync(`./.github/workflows/atomic-todo-to-issue.yml`, result);
+  }
+};
 
 const pullRepository = () => {
-   fs.rmSync(templatePath, { recursive:true, force: true})
-   if(shell.exec(`git clone --quiet ${templateRep} ${templatePath}`).code !== 0) error("Code templates not available")
-}
+  fs.rmSync(templatePath, { recursive: true, force: true });
+  if (shell.exec(`git clone --quiet ${templateRep} ${templatePath}`).code !== 0)
+    error("Code templates not available");
+};
 
 const run = (platform, type, names) => {
+  figlet(appBanner, (err, data) => {
+    console.log(chalk.green(`${data}`));
 
-    figlet(appBanner, (err, data) => {
-        console.log(chalk.green(`${data}`))
+    checkPlatform(platform);
+    createDotFile(platform);
+    createWorkflow();
+    const [p, search, extension, dir, scss] = readDotFile();
+    checkPackageJson();
+    checkPlatformType(search);
+    checkAndCreateDir(dir);
+    createAtomicDirs(dir);
 
-        checkPlatform(platform)
-        createDotFile(platform)
-        createWorkflow()
-        const [ p, search, extension, dir, scss ] = readDotFile()
-        checkPackageJson()
-        checkPlatformType(search)
-        checkAndCreateDir(dir)
-        createAtomicDirs(dir)
+    names.forEach((name) => {
+      const targetDir = `${dir}/${type}s/${name}`;
+      createComponentDir(`${type}/${name}`, targetDir);
+      processTemplates(platform, type, name, targetDir, dir, extension);
+    });
 
-        names.forEach(name => {
-            const targetDir = `${dir}/${type}s/${name}`
-            createComponentDir(`${type}/${name}`, targetDir)
-            processTemplates(platform, type, name, targetDir, dir, extension)
-        })
-
-        showCopyright()
-    })
-}
-
+    showCopyright();
+  });
+};
 
 const processArgs = (args) => {
+  const argv = yargs(hideBin(args)).argv;
+  try {
+    let platform,
+      extension,
+      search,
+      dest,
+      scss = false;
 
-    const argv = yargs(hideBin(args)).argv
-    try {
+    if (!argv.name) usage();
 
-        let platform, extension, search, dest, scss = false
-
-        if(!argv.name) usage()
-
-        if(!readDotFile()) {
-            scss = true
-            platform = argv.platform ? argv.platform.toLowerCase() : "react"
-        } else {
-            [ platform, extension, search, dest, scss ] = readDotFile()
-        }
-
-        if(platforms.indexOf(platform) === -1) usage()
-
-        const type = argv.type ? argv.type.toLowerCase() : "atom"
-        if (validOptions.indexOf(type) === -1) usage()
-
-        const names = argv.name.split(",")
-        const realNames = names.map(item => convertToPascalCase(item))
-
-        return([platform, type, realNames, scss])
-
-    } catch(err) {
-        usage()
+    if (!readDotFile()) {
+      scss = true;
+      platform = argv.platform ? argv.platform.toLowerCase() : "react";
+    } else {
+      [platform, extension, search, dest, scss] = readDotFile();
     }
-}
 
-pullRepository()
-const platforms = pullPlatforms()
-const [platform, type, name, scss] = processArgs(process.argv)
-run(platform, type, name)
+    if (platforms.indexOf(platform) === -1) usage();
 
+    const type = argv.type ? argv.type.toLowerCase() : "atom";
+    if (validOptions.indexOf(type) === -1) usage();
 
+    const names = argv.name.split(",");
+    const realNames = names.map((item) => convertToPascalCase(item));
 
+    return [platform, type, realNames, scss];
+  } catch (err) {
+    usage();
+  }
+};
+
+pullRepository();
+const platforms = pullPlatforms();
+const [platform, type, name, scss] = processArgs(process.argv);
+run(platform, type, name);
