@@ -1,9 +1,14 @@
 name: "Run Atomic Bomb TODO to Issue"
+
 on: ["push"]
+
 jobs:
   build:
-    runs-on: "ubuntu-latest"
+    runs-on: ubuntu-latest
     steps:
-      - uses: "actions/checkout@v3"
-      - name: "TODO to Issue"
-        uses: "alstr/todo-to-issue-action@v4"
+      - uses: actions/checkout@v3
+
+      - name: TODO to Issue
+        uses: alstr/todo-to-issue-action@v4
+        with:
+          close-issues: true

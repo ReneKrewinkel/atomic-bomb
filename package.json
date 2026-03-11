@@ -7,7 +7,7 @@
   "deprecated": false,
   "repository": {
     "type": "git",
-    "url": "https://github.com/ReneKrewinkel/atomic-bomb.git"
+    "url": "git+https://github.com/ReneKrewinkel/atomic-bomb.git"
   },
   "config": {
     "templates": "https://github.com/ReneKrewinkel/atomic-bomb-templates.git"
@@ -15,8 +15,9 @@
   "scripts": {
     "nice": "prettier -w *.js",
     "deprecate": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
-    "predeploy": "git add --all && git commit --allow-empty  -m $npm_package_version",
-    "deploy": "git push"
+    "predeploy": "npm version patch && git add --all && git commit --allow-empty  -m $npm_package_version",
+    "deploy": "git push",
+    "bump:patch": "npm version patch"
   },
   "files": [
     "templates/*",
@@ -28,7 +29,9 @@
     "react"
   ],
   "author": "René Krewinkel",
-  "bin": "./atomic-bomb.js",
+  "bin": {
+    "atomic-bomb": "atomic-bomb.js"
+  },
   "license": "GPL-1.0-only",
   "dependencies": {
     "chalk": "^5.1.2",
