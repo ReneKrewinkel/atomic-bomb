@@ -161,7 +161,7 @@ const processTemplates = (platform, type, name, dest, dir, ext) => {
             const result2 = result.replace(/\[TYPE\]/g, `${type}s`)
             fs.writeFileSync(`${dest}/${fName}`, result2)
         })
-        if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@import './${name}';`)
+        if (scss) fs.appendFileSync(`${base}/_index.scss`, `\n@use './${name}';`)
         if (ext) fs.appendFileSync(`${base}/index.${ext}`, `\nexport { default as ${name} } from './${name}'`)
     } catch(err)  {
         error(`oops, ${err.message}`)
