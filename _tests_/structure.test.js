@@ -9,6 +9,7 @@ import {
   readGenerationStructure,
   writeGenerationStructure,
 } from "../src/structure.js";
+import { validComponentTypes } from "../src/project.js";
 
 const makeTempDir = () =>
   fs.mkdtempSync(path.join(os.tmpdir(), "atomic-bomb-"));
@@ -25,6 +26,36 @@ test("generationStructureSchema validates supported items", () => {
       { for: "Billing/Invoicing", name: "orderService", type: "service" },
     ],
     platform: "react-ts",
+    version: 1,
+  });
+
+  assert.equal(result.success, true);
+});
+
+test("generationStructureSchema validates every registered component type", () => {
+  const scopedTypes = new Set([
+    "api",
+    "event",
+    "helper",
+    "hook",
+    "model",
+    "service",
+    "state",
+  ]);
+  const items = validComponentTypes.map((type) => {
+    if (type === "subdomain") {
+      return { for: "Orders", name: "Sales", type };
+    }
+
+    if (scopedTypes.has(type)) {
+      return { for: "Orders/Sales", name: "generatedItem", type };
+    }
+
+    return { name: "GeneratedItem", type };
+  });
+
+  const result = generationStructureSchema.safeParse({
+    items,
     version: 1,
   });
 
