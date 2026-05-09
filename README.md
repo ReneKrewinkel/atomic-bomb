@@ -32,6 +32,15 @@ yarn add -D atomic-bomb
 ## Usage: 
 ```shell
 atomic-bomb --platform react --type atom|molecule|organism|template|page --name [NAME](,[NAME],[NAME])  
+atomic-bomb --platform react-ts
+atomic-bomb --type lib --name [NAME](,[NAME],[NAME])
+atomic-bomb --type hook --name [NAME](,[NAME],[NAME])
+atomic-bomb --type domain --name [NAME](,[NAME],[NAME])
+atomic-bomb --type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])
+atomic-bomb --for [DOMAINNAME]/[SUBDOMAIN] --type hook --name [NAME]
+atomic-bomb --for [DOMAINNAME]/[SUBDOMAIN] --type service --name [NAME]
+atomic-bomb --export structure.json
+atomic-bomb --from structure.json
 ```   
 
 `--platform` can be extended.
@@ -47,6 +56,53 @@ atomic-bomb --platform react --type molecule --name Header
 ## Add multiple
 ```shell
 atomic-bomb --platform react --type atom --name Label,Button,Input
+```
+
+## Set platform
+```shell
+atomic-bomb --platform react-ts
+atomic-bomb -p react-ts
+```
+
+## Add lib files
+```shell
+atomic-bomb --type lib --name FormatDate
+```
+
+## Add hooks
+```shell
+atomic-bomb --type hook --name UseActive
+```
+
+## Add domains
+```shell
+atomic-bomb --type domain --name Billing
+```
+
+## Add subdomains
+```shell
+atomic-bomb --type subdomain --for Billing --name Invoicing
+```
+
+## Add items inside a subdomain
+```shell
+atomic-bomb --for Billing/Invoicing --type hook --name useInvoices
+atomic-bomb --for Billing/Invoicing --type service --name invoiceService
+atomic-bomb --for Billing/Invoicing --type event --name invoiceCreated
+atomic-bomb --for Billing/Invoicing --type helper --name formatInvoice
+atomic-bomb --for Billing/Invoicing --type api --name fetchInvoices
+atomic-bomb --for Billing/Invoicing --type model --name invoice
+atomic-bomb --for Billing/Invoicing --type state --name invoiceState
+```
+
+## Export structure
+```shell
+atomic-bomb --export structure.json
+```
+
+## Create from structure
+```shell
+atomic-bomb --from structure.json
 ```
 
 ## dot-file
