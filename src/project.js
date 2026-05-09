@@ -129,7 +129,7 @@ export const createAtomicDirs = ({ dir, extension = false, scss }) => {
     Object.values(atomicTypeDirectories).forEach((item) => {
       appendUniqueLine({
         filePath: componentsIndex,
-        line: `export * from './${item}';`,
+        line: `export * from './${item}'`,
       });
     });
   }
@@ -195,15 +195,15 @@ export const createSidecarFiles = ({
 
   fs.writeFileSync(
     path.join(targetDir, `${name}.${logicExtension}`),
-    `export const ${name} = () => {};\n\nexport default ${name};\n`,
+    `export const ${name} = () => {}\n\nexport default ${name}\n`,
   );
   fs.writeFileSync(
     path.join(targetDir, `index.${logicExtension}`),
-    `export { default } from './${name}';\n`,
+    `export { default } from './${name}'\n`,
   );
   fs.appendFileSync(
     path.join(sidecarDir, `index.${logicExtension}`),
-    `\nexport { default as ${name} } from './${name}';`,
+    `\nexport { default as ${name} } from './${name}'`,
   );
 
   check(`${icon} ${displayType}/${name}/${name}.${logicExtension}`);
@@ -227,7 +227,7 @@ export const createDomainFiles = ({ componentsDir, extension, name }) => {
   fs.ensureFileSync(path.join(domainDir, `index.${logicExtension}`));
   appendUniqueLine({
     filePath: domainsIndex,
-    line: `export * as ${name} from './${name}';`,
+    line: `export * as ${name} from './${name}'`,
   });
 
   check(`🏢 domains/${name}`);
@@ -261,11 +261,11 @@ export const createSubdomainFiles = ({
   fs.ensureFileSync(domainIndex);
   appendUniqueLine({
     filePath: domainsIndex,
-    line: `export * as ${domainName} from './${domainName}';`,
+    line: `export * as ${domainName} from './${domainName}'`,
   });
   appendUniqueLine({
     filePath: domainIndex,
-    line: `export * as ${name} from './${name}';`,
+    line: `export * as ${name} from './${name}'`,
   });
 
   subdomainDirectories.forEach((subdir) => {
@@ -283,7 +283,7 @@ export const createSubdomainFiles = ({
   fs.writeFileSync(
     path.join(subdomainDir, `index.${logicExtension}`),
     `${subdomainDirectories
-      .map((subdir) => `export * from './${subdir}';`)
+      .map((subdir) => `export * from './${subdir}'`)
       .join("\n")}\n`,
   );
 
@@ -331,15 +331,15 @@ export const createScopedSubdomainFiles = ({
   fs.ensureFileSync(folderIndex);
   fs.writeFileSync(
     path.join(targetDir, `${name}.${logicExtension}`),
-    `export const ${name} = () => {};\n\nexport default ${name};\n`,
+    `export const ${name} = () => {}\n\nexport default ${name}\n`,
   );
   fs.writeFileSync(
     path.join(targetDir, `index.${logicExtension}`),
-    `export { default } from './${name}';\n`,
+    `export { default } from './${name}'\n`,
   );
   appendUniqueLine({
     filePath: folderIndex,
-    line: `export { default as ${name} } from './${name}';`,
+    line: `export { default as ${name} } from './${name}'`,
   });
 
   check(

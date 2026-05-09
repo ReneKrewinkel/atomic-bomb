@@ -78,11 +78,11 @@ test("createAtomicDirs creates atomic design directories and indexes", () => {
   assert.equal(
     fs.readFileSync(path.join(componentsDir, "index.ts"), "utf8"),
     [
-      "export * from './atoms';",
-      "export * from './molecules';",
-      "export * from './organisms';",
-      "export * from './pages';",
-      "export * from './templates';",
+      "export * from './atoms'",
+      "export * from './molecules'",
+      "export * from './organisms'",
+      "export * from './pages'",
+      "export * from './templates'",
     ].join("\n"),
   );
 });
@@ -153,15 +153,15 @@ test("createLibFiles creates library files and root export", () => {
 
   assert.equal(
     fs.readFileSync(path.join(libDir, "FormatDate/FormatDate.ts"), "utf8"),
-    "export const FormatDate = () => {};\n\nexport default FormatDate;\n",
+    "export const FormatDate = () => {}\n\nexport default FormatDate\n",
   );
   assert.equal(
     fs.readFileSync(path.join(libDir, "FormatDate/index.ts"), "utf8"),
-    "export { default } from './FormatDate';\n",
+    "export { default } from './FormatDate'\n",
   );
   assert.match(
     fs.readFileSync(path.join(libDir, "index.ts"), "utf8"),
-    /export \{ default as FormatDate \} from '\.\/FormatDate';/,
+    /export \{ default as FormatDate \} from '\.\/FormatDate'/,
   );
 });
 
@@ -181,15 +181,15 @@ test("createSidecarFiles creates hook files and root hooks export", () => {
 
   assert.equal(
     fs.readFileSync(path.join(hooksDir, "UseActive/UseActive.ts"), "utf8"),
-    "export const UseActive = () => {};\n\nexport default UseActive;\n",
+    "export const UseActive = () => {}\n\nexport default UseActive\n",
   );
   assert.equal(
     fs.readFileSync(path.join(hooksDir, "UseActive/index.ts"), "utf8"),
-    "export { default } from './UseActive';\n",
+    "export { default } from './UseActive'\n",
   );
   assert.match(
     fs.readFileSync(path.join(hooksDir, "index.ts"), "utf8"),
-    /export \{ default as UseActive \} from '\.\/UseActive';/,
+    /export \{ default as UseActive \} from '\.\/UseActive'/,
   );
 });
 
@@ -217,7 +217,7 @@ test("createDomainFiles creates a domain directory and root domains export", () 
   );
   assert.match(
     fs.readFileSync(path.join(domainsDir, "index.ts"), "utf8"),
-    /export \* as Billing from '\.\/Billing';/,
+    /export \* as Billing from '\.\/Billing'/,
   );
 });
 
@@ -291,32 +291,32 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
     );
     assert.match(
       fs.readFileSync(path.join(subdomainDir, "components/index.ts"), "utf8"),
-      new RegExp(`export \\* from '\\./${atomicDir}';`),
+      new RegExp(`export \\* from '\\./${atomicDir}'`),
     );
   }
 
   assert.equal(
     fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
     [
-      "export * from './components';",
-      "export * from './hooks';",
-      "export * from './services';",
-      "export * from './state';",
-      "export * from './models';",
-      "export * from './events';",
-      "export * from './helpers';",
-      "export * from './api';",
-      "export * from './pages';",
+      "export * from './components'",
+      "export * from './hooks'",
+      "export * from './services'",
+      "export * from './state'",
+      "export * from './models'",
+      "export * from './events'",
+      "export * from './helpers'",
+      "export * from './api'",
+      "export * from './pages'",
       "",
     ].join("\n"),
   );
   assert.match(
     fs.readFileSync(path.join(dir, "src/domains/index.ts"), "utf8"),
-    /export \* as Billing from '\.\/Billing';/,
+    /export \* as Billing from '\.\/Billing'/,
   );
   assert.match(
     fs.readFileSync(path.join(dir, "src/domains/Billing/index.ts"), "utf8"),
-    /export \* as Invoicing from '\.\/Invoicing';/,
+    /export \* as Invoicing from '\.\/Invoicing'/,
   );
 });
 
@@ -356,15 +356,15 @@ test("createSubdomainFiles can repair existing subdomain index files", () => {
 
   assert.match(
     fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
-    /export \* from '\.\/components';/,
+    /export \* from '\.\/components'/,
   );
   assert.match(
     fs.readFileSync(path.join(dir, "src/domains/index.ts"), "utf8"),
-    /export \* as Billing from '\.\/Billing';/,
+    /export \* as Billing from '\.\/Billing'/,
   );
   assert.match(
     fs.readFileSync(path.join(dir, "src/domains/Billing/index.ts"), "utf8"),
-    /export \* as Invoicing from '\.\/Invoicing';/,
+    /export \* as Invoicing from '\.\/Invoicing'/,
   );
 });
 
@@ -433,19 +433,19 @@ test("createScopedSubdomainFiles creates files in the matching subdomain folder"
 
     assert.equal(
       fs.readFileSync(path.join(folderDir, name, `${name}.ts`), "utf8"),
-      `export const ${name} = () => {};\n\nexport default ${name};\n`,
+      `export const ${name} = () => {}\n\nexport default ${name}\n`,
     );
     assert.equal(
       fs.readFileSync(path.join(folderDir, name, "index.ts"), "utf8"),
-      `export { default } from './${name}';\n`,
+      `export { default } from './${name}'\n`,
     );
     assert.match(
       fs.readFileSync(path.join(folderDir, "index.ts"), "utf8"),
-      new RegExp(`export \\{ default as ${name} \\} from '\\./${name}';`),
+      new RegExp(`export \\{ default as ${name} \\} from '\\./${name}'`),
     );
     assert.match(
       fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
-      new RegExp(`export \\* from '\\./${folder}';`),
+      new RegExp(`export \\* from '\\./${folder}'`),
     );
   }
 });
