@@ -43,6 +43,16 @@ jobs:
             echo "atomic-bomb@$PACKAGE_VERSION is not published yet"
           fi
 
+      - name: Check npm auth token
+        if: steps.npm-version.outputs.published == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "::error title=Missing NPM_TOKEN::Add an npm automation token as the NPM_TOKEN repository secret."
+            exit 1
+          fi
+
       - name: Publish
         if: steps.npm-version.outputs.published == 'false'
         env:
