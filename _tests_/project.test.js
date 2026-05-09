@@ -410,7 +410,9 @@ test("createScopedSubdomainFiles creates files in the matching subdomain folder"
     ["api", "api", "fetchOrders"],
     ["event", "events", "orderCreated"],
     ["helper", "helpers", "formatOrder"],
+    ["hook", "hooks", "useOrders"],
     ["model", "models", "orderSummary"],
+    ["page", "pages", "SalesOverview"],
     ["service", "services", "orderService"],
     ["state", "state", "orderState"],
   ];
