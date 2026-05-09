@@ -2,14 +2,15 @@ name: "Publish and Maintain"
 
 on:
   push:
-  pull_request:
-    types: [closed]
-    branches: [main]
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
 
 jobs:
   publish:
     name: "Publish to npm"
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,7 +28,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test
+        run: npm test
+
+      - name: Check npm version
+        id: npm-version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "atomic-bomb@$PACKAGE_VERSION" version > /dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "atomic-bomb@$PACKAGE_VERSION is already published"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "atomic-bomb@$PACKAGE_VERSION is not published yet"
+          fi
+
       - name: Publish
+        if: steps.npm-version.outputs.published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish
+        run: npm publish --provenance

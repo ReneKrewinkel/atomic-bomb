@@ -16,8 +16,8 @@
     "nice": "prettier -w *.js src/*.js _tests_/*.js",
     "test": "node --test _tests_/*.test.js",
     "deprecate": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
-    "predeploy": "npm version patch && git add --all && git commit --allow-empty  -m $npm_package_version",
-    "deploy": "git push",
+    "predeploy": "npm test && npm version patch",
+    "deploy": "git push --follow-tags",
     "bump:patch": "npm version patch"
   },
   "files": [
