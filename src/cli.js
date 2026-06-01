@@ -29,6 +29,7 @@ import {
   createWorkflow,
   getScopedComponentsDir,
   isAtomicType,
+  removeGeneratedItem,
   validComponentTypes,
 } from "./project.js";
 import {
@@ -43,7 +44,7 @@ import {
 } from "./structure.js";
 
 const usage = ({ appName, platforms }) => {
-  const message = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validComponentTypes.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--export [FILENAME]\n\t--from [FILENAME]\n`;
+  const message = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validComponentTypes.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--remove [NAME]\n\t--export [FILENAME]\n\t--from [FILENAME]\n`;
   console.log(chalk.greenBright(`🤙 ${message}\n\nhttps://atomic-bomb.io`));
   process.exit(2);
 };
@@ -78,11 +79,27 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
     })
     .option("from", {
       type: "string",
+    })
+    .option("remove", {
+      type: "string",
     }).argv;
 
   try {
-    if (argv.export && argv.from) usage({ appName, platforms });
-    if (!argv.name && !argv.platform && !argv.export && !argv.from) {
+    const actionCount = [argv.export, argv.from, argv.remove].filter(
+      Boolean,
+    ).length;
+
+    if (actionCount > 1 || (argv.remove && argv.name)) {
+      usage({ appName, platforms });
+    }
+
+    if (
+      !argv.name &&
+      !argv.platform &&
+      !argv.export &&
+      !argv.from &&
+      !argv.remove
+    ) {
       usage({ appName, platforms });
     }
 
@@ -100,6 +117,10 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
 
     if (argv.from) {
       return { fromFile: argv.from, platform };
+    }
+
+    if (argv.remove) {
+      return { removeName: argv.remove, platform };
     }
 
     if (!argv.name) {
@@ -439,6 +460,23 @@ const generateFromStructure = ({ appConfig, filePath, platform }) => {
   });
 };
 
+const removeItem = ({ appConfig, name, platform }) => {
+  figlet(appConfig.banner, (err, data) => {
+    if (err) error(err.message);
+
+    console.log(chalk.green(`${data}`));
+
+    const projectConfig = prepareProject({ platform });
+
+    removeGeneratedItem({
+      componentsDir: projectConfig.destination,
+      name,
+    });
+
+    showCopyright(appConfig);
+  });
+};
+
 export const runCli = (args = process.argv) => {
   const appConfig = readAppConfig(appPackagePath);
 
@@ -473,6 +511,15 @@ export const runCli = (args = process.argv) => {
     generateFromStructure({
       appConfig,
       filePath: options.fromFile,
+      platform: options.platform,
+    });
+    return;
+  }
+
+  if (options.removeName) {
+    removeItem({
+      appConfig,
+      name: options.removeName,
       platform: options.platform,
     });
     return;

@@ -385,3 +385,19 @@ test("parseArgs supports from action", () => {
     },
   );
 });
+
+test("parseArgs supports remove action", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: ["node", "atomic-bomb", "--remove", "data table"],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      platform: "react-ts",
+      removeName: "data table",
+    },
+  );
+});

@@ -1,5 +1,6 @@
 import fs from "fs-extra";
 import path from "node:path";
+import { convertToCamelCase, convertToPascalCase } from "./case.js";
 import { check, error } from "./logger.js";
 
 export const validComponentTypes = [
@@ -71,6 +72,75 @@ const appendUniqueLine = ({ filePath, line }) => {
   if (content.split("\n").includes(line)) return;
 
   fs.appendFileSync(filePath, `${content ? "\n" : ""}${line}`);
+};
+
+const getRemoveNameCandidates = (name) =>
+  [
+    name.trim(),
+    convertToPascalCase(name),
+    convertToCamelCase(name),
+  ].filter(Boolean);
+
+const visibleDirectoriesRecursive = (dir) => {
+  if (!fs.existsSync(dir)) return [];
+
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((item) => !item.name.startsWith("."))
+    .flatMap((item) => {
+      const itemPath = path.join(dir, item.name);
+
+      if (!item.isDirectory()) return [];
+
+      return [itemPath, ...visibleDirectoriesRecursive(itemPath)];
+    });
+};
+
+const visibleFilesRecursive = (dir) => {
+  if (!fs.existsSync(dir)) return [];
+
+  return fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((item) => !item.name.startsWith("."))
+    .flatMap((item) => {
+      const itemPath = path.join(dir, item.name);
+
+      if (item.isDirectory()) return visibleFilesRecursive(itemPath);
+
+      return itemPath;
+    });
+};
+
+const isBarrelFile = (filePath) => {
+  const fileName = path.basename(filePath);
+
+  return /^index\.(j|t)sx?$/.test(fileName) || fileName === "_index.scss";
+};
+
+const removesNameReference = ({ line, names }) =>
+  names.some(
+    (name) =>
+      line.includes(`from './${name}'`) ||
+      line.includes(`from "./${name}"`) ||
+      line.includes(`@use './${name}'`) ||
+      line.includes(`@use "./${name}"`),
+  );
+
+const removeBarrelReferences = ({ dir, names }) => {
+  visibleFilesRecursive(dir)
+    .filter(isBarrelFile)
+    .forEach((filePath) => {
+      const content = fs.readFileSync(filePath, "utf8");
+      const nextContent = content
+        .split("\n")
+        .filter((line) => !removesNameReference({ line, names }))
+        .join("\n");
+
+      if (nextContent !== content) {
+        fs.writeFileSync(filePath, nextContent);
+        check(`🧹 ${filePath}`);
+      }
+    });
 };
 
 export const checkPackageJson = (packagePath) => {
@@ -149,6 +219,36 @@ export const createWorkflow = ({ workflowTemplatePath }) => {
   const result = fs.readFileSync(workflowTemplatePath, "utf-8");
   fs.ensureDirSync("./.github/workflows", 0o744);
   fs.writeFileSync(workflowPath, result);
+};
+
+export const removeGeneratedItem = ({ componentsDir, name }) => {
+  const names = getRemoveNameCandidates(name);
+  const roots = [
+    componentsDir,
+    getSidecarDir({ componentsDir, type: "domain" }),
+    getSidecarDir({ componentsDir, type: "hook" }),
+    getSidecarDir({ componentsDir, type: "lib" }),
+  ].filter((item, index, items) => items.indexOf(item) === index);
+
+  const targets = roots
+    .flatMap((root) => visibleDirectoriesRecursive(root))
+    .filter((dir) => names.includes(path.basename(dir)))
+    .filter((item, index, items) => items.indexOf(item) === index)
+    .sort(
+      (left, right) =>
+        right.split(path.sep).length - left.split(path.sep).length,
+    );
+
+  if (targets.length === 0) error(`${name} not found`);
+
+  targets.forEach((target) => {
+    fs.rmSync(target, { recursive: true, force: true });
+    check(`🗑️ ${target}`);
+  });
+
+  roots.forEach((dir) => removeBarrelReferences({ dir, names }));
+
+  return targets;
 };
 
 export const getLibDir = (componentsDir) =>
