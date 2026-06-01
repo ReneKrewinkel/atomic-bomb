@@ -43,7 +43,7 @@ jobs:
             echo "atomic-bomb@$PACKAGE_VERSION is not published yet"
           fi
 
-      - name: Check npm auth token
+      - name: Check npm auth
         if: steps.npm-version.outputs.published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -52,6 +52,13 @@ jobs:
             echo "::error title=Missing NPM_TOKEN::Add an npm automation token as the NPM_TOKEN repository secret."
             exit 1
           fi
+
+          if ! NPM_USER=$(npm whoami); then
+            echo "::error title=Invalid NPM_TOKEN::The NPM_TOKEN repository secret is invalid, expired, or not accepted by npm."
+            exit 1
+          fi
+
+          echo "Authenticated to npm as $NPM_USER"
 
       - name: Publish
         if: steps.npm-version.outputs.published == 'false'
