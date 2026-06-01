@@ -41,6 +41,11 @@ test("convertNameForType uses camelCase for non-component files", () => {
   );
 });
 
+test("convertNameForType preserves single-case lib names", () => {
+  assert.equal(convertNameForType({ type: "lib", value: "API" }), "API");
+  assert.equal(convertNameForType({ type: "lib", value: "api" }), "api");
+});
+
 test("convertNameForType uses PascalCase for component and domain containers", () => {
   assert.equal(
     convertNameForType({ type: "atom", value: "DataTable" }),

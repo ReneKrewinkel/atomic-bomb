@@ -6,6 +6,14 @@ const splitWords = (value) =>
 
 const capitalize = (value) => `${value[0].toUpperCase()}${value.slice(1)}`;
 const uncapitalize = (value) => `${value[0].toLowerCase()}${value.slice(1)}`;
+const isSingleCaseToken = (value) => {
+  const trimmed = value.trim();
+
+  return (
+    !/[\s_-]/.test(trimmed) &&
+    (trimmed === trimmed.toUpperCase() || trimmed === trimmed.toLowerCase())
+  );
+};
 
 export const convertToPascalCase = (value) => {
   const words = splitWords(value);
@@ -33,6 +41,8 @@ export const convertNameForType = ({ type, value }) => {
     "subdomain",
     "template",
   ];
+
+  if (type === "lib" && isSingleCaseToken(value)) return value.trim();
 
   return pascalCaseTypes.includes(type)
     ? convertToPascalCase(value)

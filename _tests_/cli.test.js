@@ -164,6 +164,23 @@ test("parseArgs supports lib as a component type", () => {
   );
 });
 
+test("parseArgs preserves uppercase lib names", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: ["node", "atomic-bomb", "--type", "lib", "--name", "API"],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      platform: "react-ts",
+      type: "lib",
+      names: ["API"],
+    },
+  );
+});
+
 test("parseArgs supports hook as a component type", () => {
   assert.deepEqual(
     parseArgs({
