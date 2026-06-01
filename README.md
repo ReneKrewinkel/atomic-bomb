@@ -9,8 +9,15 @@ It can create:
 - domain containers and subdomain folders
 - scoped domain files: `api`, `event`, `helper`, `hook`, `model`, `page`, `service`, `state`
 - structure JSON exports and imports
+- recursive generated item removal
 
-<img src="./atomic-bomb-logo.png" style="width: 220px;" alt="AtomicBomb">
+<div align="center">
+<img src="./promo-atomic-bomb.png" style="width: 420px;" alt="Atomic Bomb">
+
+![Rust](https://shields.io/badge/TypeScript-3178C6?logo=TypeScript&logoColor=FFF&style=flat-square)
+![Neovim](https://img.shields.io/badge/Neovim-0.9%2B-57A143?logo=neovim&logoColor=white)
+
+</div>
 
 > **Important**
 > This tool is for educational purposes.
@@ -80,6 +87,7 @@ atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|model|page|s
 
 atomic-bomb --export structure.json
 atomic-bomb --from structure.json
+atomic-bomb --remove [NAME]
 ```
 
 ## Platforms
@@ -449,6 +457,26 @@ export { default as orderService } from './orderService'
 ```
 
 Scoped generation repairs missing subdomain index files when the subdomain already exists.
+
+## Remove Generated Items
+
+Remove generated items by name:
+
+```shell
+atomic-bomb --remove Logo
+atomic-bomb --remove orderService
+```
+
+The remove command scans generated `components`, `domains`, `hooks`, and `lib` folders recursively. It removes every matching item directory and cleans matching TypeScript and Sass barrel lines such as:
+
+```ts
+export { default as Logo } from './Logo'
+export * as Orders from './Orders'
+```
+
+```scss
+@use './Logo';
+```
 
 ## Export Structure
 

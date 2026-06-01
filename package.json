@@ -1,25 +1,21 @@
 {
-  "name": "atomic-bomb",
-  "version": "6.1.3",
-  "description": "A small CLI tool to create atoms, molecules and organisms in a NodeJS app",
-  "main": "atomic-bomb.js",
-  "type": "module",
-  "deprecated": false,
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ReneKrewinkel/atomic-bomb.git"
+  "author": "René Krewinkel",
+  "bin": {
+    "atomic-bomb": "atomic-bomb.js"
   },
   "config": {
     "templates": "https://github.com/ReneKrewinkel/atomic-bomb-templates.git"
   },
-  "scripts": {
-    "nice": "prettier -w *.js src/*.js _tests_/*.js",
-    "test": "node --test _tests_/*.test.js",
-    "deprecate": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
-    "predeploy": "npm test && npm version patch",
-    "deploy": "git push --follow-tags",
-    "bump:patch": "npm version patch"
+  "dependencies": {
+    "chalk": "^5.1.2",
+    "figlet": "^1.5.2",
+    "fs-extra": "^10.1.0",
+    "shelljs": "^0.8.5",
+    "yargs": "^17.6.0",
+    "zod": "^3.19.1"
   },
+  "deprecated": false,
+  "description": "A small CLI tool to create atoms, molecules and organisms in a NodeJS app",
   "files": [
     "src/*",
     "templates/*",
@@ -30,17 +26,21 @@
     "education",
     "react"
   ],
-  "author": "René Krewinkel",
-  "bin": {
-    "atomic-bomb": "atomic-bomb.js"
-  },
   "license": "GPL-1.0-only",
-  "dependencies": {
-    "chalk": "^5.1.2",
-    "figlet": "^1.5.2",
-    "fs-extra": "^10.1.0",
-    "shelljs": "^0.8.5",
-    "yargs": "^17.6.0",
-    "zod": "^3.19.1"
-  }
+  "main": "atomic-bomb.js",
+  "name": "atomic-bomb",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ReneKrewinkel/atomic-bomb.git"
+  },
+  "scripts": {
+    "bump:patch": "npm version patch",
+    "deploy": "git push --follow-tags",
+    "deprecate": "npm deprecate atomic-bomb@\"<$(echo $npm_package_version|cut -d v  -f 2)\" \"Please upgrade\"",
+    "nice": "prettier -w *.js src/*.js _tests_/*.js",
+    "predeploy": "npm test && npm version patch",
+    "test": "node --test _tests_/*.test.js"
+  },
+  "type": "module",
+  "version": "6.1.4"
 }

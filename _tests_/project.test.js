@@ -15,6 +15,7 @@ import {
   getLibDir,
   getLogicExtension,
   getSidecarDir,
+  removeGeneratedItem,
 } from "../src/project.js";
 
 const makeTempDir = () =>
@@ -450,4 +451,74 @@ test("createScopedSubdomainFiles creates files in the matching subdomain folder"
       new RegExp(`export \\* from '\\./${folder}'`),
     );
   }
+});
+
+test("removeGeneratedItem removes matching generated directories and barrel references", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const atomsDir = path.join(componentsDir, "atoms");
+  const scopedAtomsDir = path.join(
+    dir,
+    "src/domains/Orders/Sales/components/atoms",
+  );
+  const hooksDir = path.join(dir, "src/hooks");
+
+  fs.mkdirSync(path.join(atomsDir, "DataTable"), { recursive: true });
+  fs.mkdirSync(path.join(atomsDir, "KeepMe"), { recursive: true });
+  fs.mkdirSync(path.join(scopedAtomsDir, "DataTable"), { recursive: true });
+  fs.mkdirSync(path.join(hooksDir, "dataTable"), { recursive: true });
+  fs.writeFileSync(
+    path.join(atomsDir, "index.tsx"),
+    [
+      "export { default as DataTable } from './DataTable'",
+      "export { default as KeepMe } from './KeepMe'",
+      "",
+    ].join("\n"),
+  );
+  fs.writeFileSync(
+    path.join(atomsDir, "_index.scss"),
+    ["@use './DataTable';", "@use './KeepMe';", ""].join("\n"),
+  );
+  fs.writeFileSync(
+    path.join(scopedAtomsDir, "index.tsx"),
+    [
+      "export { default as DataTable } from './DataTable'",
+      "export { default as KeepMe } from './KeepMe'",
+      "",
+    ].join("\n"),
+  );
+  fs.writeFileSync(
+    path.join(hooksDir, "index.ts"),
+    [
+      "export { default as dataTable } from './dataTable'",
+      "export { default as useKeepMe } from './useKeepMe'",
+      "",
+    ].join("\n"),
+  );
+
+  const removed = silenceConsole(() =>
+    removeGeneratedItem({ componentsDir, name: "data table" }),
+  );
+
+  assert.equal(removed.length, 3);
+  assert.equal(fs.existsSync(path.join(atomsDir, "DataTable")), false);
+  assert.equal(fs.existsSync(path.join(scopedAtomsDir, "DataTable")), false);
+  assert.equal(fs.existsSync(path.join(hooksDir, "dataTable")), false);
+  assert.equal(fs.existsSync(path.join(atomsDir, "KeepMe")), true);
+  assert.match(
+    fs.readFileSync(path.join(atomsDir, "index.tsx"), "utf8"),
+    /KeepMe/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(atomsDir, "index.tsx"), "utf8"),
+    /DataTable/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(atomsDir, "_index.scss"), "utf8"),
+    /DataTable/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(hooksDir, "index.ts"), "utf8"),
+    /dataTable/,
+  );
 });
