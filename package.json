@@ -22,6 +22,7 @@
     "templates/*",
     "workflows/*"
   ],
+  "homepage": "https://atomic-bomb.io",
   "keywords": [
     "atomic design",
     "education",
@@ -43,5 +44,5 @@
     "test": "node --test _tests_/*.test.js"
   },
   "type": "module",
-  "version": "7.0.1"
+  "version": "7.0.2"
 }
