@@ -88,6 +88,8 @@ atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|model|page|s
 atomic-bomb --export structure.json
 atomic-bomb --from structure.json
 atomic-bomb --remove [NAME]
+atomic-bomb --update
+atomic-bomb --type atom --name Button --ai [--prompt PROMPT] [--validate]
 ```
 
 ## Platforms
@@ -109,7 +111,7 @@ atomic-bomb --platform react-ts
 atomic-bomb -p react-ts
 ```
 
-This writes or updates `.atomic-bomb` without requiring `--name`.
+This writes or updates `.atomic-bomb` without requiring `--name`. During platform setup, Atomic Bomb also asks whether to configure an AI provider for the future `--ai` flow.
 
 Available platforms depend on the template repository. See [atomic-bomb-templates](https://github.com/ReneKrewinkel/atomic-bomb-templates).
 
@@ -125,7 +127,15 @@ Example:
   "extension": "tsx",
   "platform": "react-ts",
   "destination": "src/components",
-  "scss": true
+  "scss": true,
+  "ai": {
+    "enabled": true,
+    "provider": "openai-compatible",
+    "baseUrl": "https://api.example.com/v1",
+    "model": "example-model",
+    "apiKeyEnv": "EXAMPLE_API_KEY",
+    "skillPath": ".skills/atomic-bomb/7.0.0/index.md"
+  }
 }
 ```
 
@@ -136,6 +146,115 @@ Fields:
 - `platform`: default platform used when `--platform` is omitted
 - `destination`: component root, usually `src/components`
 - `scss`: whether `_index.scss` files are created and updated
+- `ai`: optional provider configuration for `--ai`
+
+AI fields:
+
+- `enabled`: whether AI-assisted generation is configured
+- `provider`: provider adapter name, for example `openai` or `openai-compatible`
+- `baseUrl`: provider API base URL
+- `model`: provider model name
+- `apiKeyEnv`: environment variable that contains the API key; secrets are not stored in `.atomic-bomb`
+- `skillPath`: installed skill index path, defaulting to `.skills/atomic-bomb/<atomic-bomb-version>/index.md`
+
+The `--ai` flag uses the configured provider adapter to read the installed skill files, expand the scaffold plan and complete generated files.
+
+## AI-Assisted Generation
+
+Configure the platform and AI provider first:
+
+```shell
+atomic-bomb -p react-ts
+```
+
+During platform setup, Atomic Bomb can store provider settings in `.atomic-bomb`. The default `skillPath` is:
+
+```txt
+.skills/atomic-bomb/<atomic-bomb-version>/index.md
+```
+
+Running `atomic-bomb -p` also installs the bundled skill files into the target project:
+
+```txt
+.skills/atomic-bomb/<atomic-bomb-version>/
+```
+
+Refresh the installed skill files without reconfiguring the platform:
+
+```shell
+atomic-bomb --update
+```
+
+This replaces `.skills/atomic-bomb/<atomic-bomb-version>/` with the bundled skill files from the current Atomic Bomb version. If `.atomic-bomb` already has AI provider settings, `--update` preserves them and updates `ai.skillPath` to the refreshed versioned `index.md`.
+
+Use `--ai` on generation commands when you want the configured provider adapter to read those installed skill instructions and determine the component setup before implementation. The `openai` and `openai-compatible` provider names use the OpenAI-compatible adapter.
+
+For page and organism requests, Atomic Bomb seeds the scaffold plan with the standard skill-driven composition stack before asking the provider to complete files. A form-like page request will consistently scaffold base atoms such as `Label`, `InputField`, `Button` and `Icon`, then compose them through `ButtonGroup` and `Form` before completing the requested page.
+
+Add `--validate` to run a post-generation AI validation pass. The provider reviews the completed generated files against the installed skill instructions and checks for bugs, prop/API mismatches, broken imports, accessibility issues and usability gaps. Validation is only valid with `--ai`; if the provider returns issues, the command fails with the reported findings.
+
+Create an AI-assisted atom:
+
+```shell
+atomic-bomb --type atom --name Button --ai
+```
+
+Create a composed molecule:
+
+```shell
+atomic-bomb --type molecule --name "Button Group" --ai --prompt "Use primary and secondary actions with optional icons."
+```
+
+Create a page-level feature:
+
+```shell
+atomic-bomb --type page --name ServiceDesk --ai --prompt "Create a ticket intake screen with title input, save/cancel actions, loading state, and success callback."
+```
+
+Create and validate a page-level feature:
+
+```shell
+atomic-bomb --type page --name ServiceDesk --ai --validate --prompt "Create a ticket intake screen with title input, save/cancel actions, loading state, and success callback."
+```
+
+Create a scoped component inside a domain subdomain:
+
+```shell
+atomic-bomb --for Orders/Sales --type organism --name OrdersTable --ai
+```
+
+For `--ai` requests, the provider should use the configured `skillPath` to decide:
+
+- whether existing atoms, molecules or organisms should be reused or extended
+- which Atomic Bomb artifacts should be scaffolded
+- which `_types_` contracts, props and variants are needed
+- which TypeScript and Sass barrels must be updated
+- which token-backed CSS variables and Sass mixins should be used
+- which mocks, stories and tests should be completed
+- which validation command should run before completion
+- whether `--validate` should fail because generated code violates the skill, contains likely bugs or has usability/accessibility problems
+
+The CLI stores the AI intent with the parsed command and exposes the provider configuration. If no adapter exists for the configured provider, the command exits with a clear error.
+
+`--prompt` and `--validate` are only valid with `--ai`. Use `--prompt` for request-specific instructions that should be combined with the installed skill instructions.
+
+## Compatibility
+
+Atomic Bomb remains compatible with existing non-AI generation workflows. Commands that do not pass `--ai` still scaffold from templates, update barrels, create sidecar files, export/import structure JSON and remove generated items without calling an AI provider.
+
+AI support is opt-in:
+
+- `--ai` must be passed before any provider call is made
+- `--prompt` and `--validate` are invalid without `--ai`
+- the optional `.atomic-bomb.ai` block is ignored by normal scaffolding commands
+- API keys are read only from the configured environment variable and are not stored in `.atomic-bomb`
+
+There are two additive filesystem changes in newer versions:
+
+- `atomic-bomb -p` installs bundled skill files into `.skills/atomic-bomb/<atomic-bomb-version>/`
+- atomic directory setup creates `src/components/_types_/index.ts` or `index.js`
+
+Those additions are safe for existing projects, but they can make the generated project tree slightly larger than older Atomic Bomb versions. Use `atomic-bomb --update` to refresh installed skill files after upgrading Atomic Bomb.
 
 ## Naming
 
@@ -235,6 +354,8 @@ Atomic directory indexes are created for each component bucket:
 ```shell
 src/components
 ├── index.ts
+├── _types_
+│   └── index.ts
 ├── atoms
 │   ├── index.tsx
 │   └── _index.scss

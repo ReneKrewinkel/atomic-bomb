@@ -182,6 +182,16 @@ export const checkAndCreateDir = (dir) => {
 };
 
 export const createAtomicDirs = ({ dir, extension = false, scss }) => {
+  const typesDir = path.join(dir, "_types_");
+
+  fs.ensureDirSync(typesDir);
+
+  if (extension) {
+    fs.ensureFileSync(
+      path.join(typesDir, `index.${getLogicExtension(extension)}`),
+    );
+  }
+
   Object.values(atomicTypeDirectories).forEach((item) => {
     const atomicDir = `${dir}/${item}`;
     fs.ensureDirSync(atomicDir);
@@ -196,6 +206,10 @@ export const createAtomicDirs = ({ dir, extension = false, scss }) => {
     );
 
     fs.ensureFileSync(componentsIndex);
+    appendUniqueLine({
+      filePath: componentsIndex,
+      line: "export * from './_types_'",
+    });
     Object.values(atomicTypeDirectories).forEach((item) => {
       appendUniqueLine({
         filePath: componentsIndex,

@@ -76,9 +76,15 @@ test("createAtomicDirs creates atomic design directories and indexes", () => {
     );
   }
 
+  assert.equal(fs.existsSync(path.join(componentsDir, "_types_")), true);
+  assert.equal(
+    fs.existsSync(path.join(componentsDir, "_types_", "index.ts")),
+    true,
+  );
   assert.equal(
     fs.readFileSync(path.join(componentsDir, "index.ts"), "utf8"),
     [
+      "export * from './_types_'",
       "export * from './atoms'",
       "export * from './molecules'",
       "export * from './organisms'",
@@ -296,6 +302,20 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
     );
   }
 
+  assert.equal(
+    fs.existsSync(path.join(subdomainDir, "components", "_types_")),
+    true,
+  );
+  assert.equal(
+    fs.existsSync(
+      path.join(subdomainDir, "components", "_types_", "index.ts"),
+    ),
+    true,
+  );
+  assert.match(
+    fs.readFileSync(path.join(subdomainDir, "components/index.ts"), "utf8"),
+    /export \* from '\.\/_types_'/,
+  );
   assert.equal(
     fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
     [
