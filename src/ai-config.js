@@ -1,12 +1,10 @@
 import readline from "node:readline/promises";
 
 export const defaultSkillPath = ".skills/atomic-bomb/latest/index.md";
-
-const normalizeOptional = (value) => {
-  const result = value.trim();
-
-  return result ? result : undefined;
-};
+export const defaultAiProvider = "openai";
+export const defaultAiBaseUrl = "https://api.openai.com/v1";
+export const defaultAiModel = "gpt-5-mini";
+export const defaultAiApiKeyEnv = "OPENAI_API_KEY";
 
 const promptWithDefault = async ({ prompt, question, defaultValue = "" }) => {
   const suffix = defaultValue ? ` (${defaultValue})` : "";
@@ -21,11 +19,13 @@ export const promptAiConfig = async ({
   existingAiConfig = false,
   input = process.stdin,
   output = process.stdout,
+  isInteractive = input.isTTY && output.isTTY,
+  question = false,
 } = {}) => {
-  if (!input.isTTY || !output.isTTY) return existingAiConfig || false;
+  if (!isInteractive) return existingAiConfig || false;
 
-  const rl = readline.createInterface({ input, output });
-  const prompt = (question) => rl.question(question);
+  const rl = question ? false : readline.createInterface({ input, output });
+  const prompt = question || ((message) => rl.question(message));
 
   try {
     const action = existingAiConfig ? "update" : "configure";
@@ -41,44 +41,21 @@ export const promptAiConfig = async ({
       return existingAiConfig || false;
     }
 
-    const provider = await promptWithDefault({
-      prompt,
-      question: "AI provider",
-      defaultValue: existingAiConfig?.provider || "openai-compatible",
-    });
-    const baseUrl = await promptWithDefault({
-      prompt,
-      question: "AI API base URL",
-      defaultValue: existingAiConfig?.baseUrl || "",
-    });
-    const model = await promptWithDefault({
-      prompt,
-      question: "AI model",
-      defaultValue: existingAiConfig?.model || "",
-    });
     const apiKeyEnv = await promptWithDefault({
       prompt,
-      question: "API key environment variable name",
-      defaultValue: existingAiConfig?.apiKeyEnv || "",
+      question: "OpenAI API key environment variable name",
+      defaultValue: existingAiConfig?.apiKeyEnv || defaultAiApiKeyEnv,
     });
-    const skillPath = await promptWithDefault({
-      prompt,
-      question: "AI skill index path",
-      defaultValue: existingAiConfig?.skillPath || configuredDefaultSkillPath,
-    });
-    const normalizedBaseUrl = normalizeOptional(baseUrl);
-    const normalizedModel = normalizeOptional(model);
-    const normalizedApiKeyEnv = normalizeOptional(apiKeyEnv);
 
     return {
       enabled: true,
-      provider,
-      ...(normalizedBaseUrl ? { baseUrl: normalizedBaseUrl } : {}),
-      ...(normalizedModel ? { model: normalizedModel } : {}),
-      ...(normalizedApiKeyEnv ? { apiKeyEnv: normalizedApiKeyEnv } : {}),
-      skillPath,
+      provider: defaultAiProvider,
+      baseUrl: defaultAiBaseUrl,
+      model: defaultAiModel,
+      apiKeyEnv,
+      skillPath: configuredDefaultSkillPath,
     };
   } finally {
-    rl.close();
+    if (rl) rl.close();
   }
 };
