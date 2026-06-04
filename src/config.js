@@ -9,6 +9,16 @@ const configSchema = z.object({
   platform: z.string(),
   destination: z.string(),
   scss: z.boolean(),
+  ai: z
+    .object({
+      enabled: z.boolean().optional(),
+      provider: z.string().min(1),
+      baseUrl: z.string().min(1).optional(),
+      model: z.string().min(1).optional(),
+      apiKeyEnv: z.string().min(1).optional(),
+      skillPath: z.string().min(1),
+    })
+    .optional(),
 });
 
 export const readAppConfig = (appPackagePath) => {
@@ -29,9 +39,21 @@ export const createDotFile = ({ dotFilePath, platform, templatePath }) => {
   writeDotFile({ dotFilePath, platform, templatePath });
 };
 
-export const writeDotFile = ({ dotFilePath, platform, templatePath }) => {
-  const config = fs.readFileSync(`${templatePath}/${platform}.json`, "utf-8");
-  fs.writeFileSync(dotFilePath, config);
+export const writeDotFile = ({
+  aiConfig = false,
+  dotFilePath,
+  platform,
+  templatePath,
+}) => {
+  const config = JSON.parse(
+    fs.readFileSync(`${templatePath}/${platform}.json`, "utf-8"),
+  );
+  const result = {
+    ...config,
+    ...(aiConfig ? { ai: aiConfig } : {}),
+  };
+
+  fs.writeFileSync(dotFilePath, `${JSON.stringify(result, null, 2)}\n`);
 };
 
 export const readDotFile = (dotFilePath) => {
@@ -49,6 +71,10 @@ export const readDotFile = (dotFilePath) => {
     };
   } catch (err) {
     let message = err.message;
+
+    if (err instanceof SyntaxError) {
+      return error(`.atomic-bomb: oops: ${message}`);
+    }
 
     if (err instanceof z.ZodError) {
       message =

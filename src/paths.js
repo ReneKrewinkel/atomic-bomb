@@ -6,6 +6,7 @@ export const packageRoot = path.resolve(
 );
 
 export const appPackagePath = path.join(packageRoot, "package.json");
+export const skillSourcePath = path.join(packageRoot, "SKILLS", "atomic-bomb");
 export const templatePath = path.join(packageRoot, "templates");
 export const workflowTemplatePath = path.join(
   packageRoot,

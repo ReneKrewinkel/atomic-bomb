@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseArgs } from "../src/cli.js";
+import { getAiUnavailableMessage, parseArgs } from "../src/cli.js";
 import { validComponentTypes } from "../src/project.js";
 
 const parserOptions = {
@@ -178,6 +178,152 @@ test("parseArgs preserves uppercase lib names", () => {
       type: "lib",
       names: ["API"],
     },
+  );
+});
+
+test("parseArgs supports ai flag for generated components", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "atom",
+        "--name",
+        "button",
+        "--ai",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      ai: true,
+      platform: "react-ts",
+      type: "atom",
+      names: ["Button"],
+    },
+  );
+});
+
+test("parseArgs supports prompt with ai flag for generated components", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "molecule",
+        "--name",
+        "search bar",
+        "--ai",
+        "--prompt",
+        "Use an input, submit button, loading state, and compact variant.",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      ai: true,
+      prompt: "Use an input, submit button, loading state, and compact variant.",
+      platform: "react-ts",
+      type: "molecule",
+      names: ["SearchBar"],
+    },
+  );
+});
+
+test("parseArgs supports validate with ai flag for generated components", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "page",
+        "--name",
+        "service desk",
+        "--ai",
+        "--validate",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      ai: true,
+      platform: "react-ts",
+      type: "page",
+      names: ["ServiceDesk"],
+      validate: true,
+    },
+  );
+});
+
+test("getAiUnavailableMessage requires configured AI provider", () => {
+  assert.equal(
+    getAiUnavailableMessage({ aiConfig: false }),
+    "AI generation requested, but no AI provider is configured. Run atomic-bomb -p and configure an AI provider first.",
+  );
+});
+
+test("getAiUnavailableMessage rejects unimplemented AI provider adapters", () => {
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig: {
+        enabled: true,
+        provider: "future-provider",
+        skillPath: ".skills/atomic-bomb/7.0.0/index.md",
+      },
+      options: { type: "page" },
+    }),
+    'AI generation requested with provider "future-provider", but no provider adapter is implemented yet. Remove --ai to scaffold normally, or add an adapter for this provider.',
+  );
+});
+
+test("getAiUnavailableMessage allows openai-compatible component generation", () => {
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig: {
+        enabled: true,
+        provider: "openai-compatible",
+        skillPath: ".skills/atomic-bomb/7.0.0/index.md",
+      },
+      options: { type: "page" },
+    }),
+    false,
+  );
+});
+
+test("getAiUnavailableMessage allows openai provider alias", () => {
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig: {
+        enabled: true,
+        provider: "openai",
+        skillPath: ".skills/atomic-bomb/7.0.0/index.md",
+      },
+      options: { type: "page" },
+    }),
+    false,
+  );
+});
+
+test("getAiUnavailableMessage rejects scoped AI generation", () => {
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig: {
+        enabled: true,
+        provider: "openai-compatible",
+        skillPath: ".skills/atomic-bomb/7.0.0/index.md",
+      },
+      options: { forSubdomain: "Sales", type: "organism" },
+    }),
+    "AI generation for scoped subdomain components is not implemented yet. Remove --ai to scaffold normally.",
   );
 });
 
@@ -415,6 +561,22 @@ test("parseArgs supports remove action", () => {
     {
       platform: "react-ts",
       removeName: "data table",
+    },
+  );
+});
+
+test("parseArgs supports update action", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: ["node", "atomic-bomb", "--update"],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      platform: "react-ts",
+      updateSkills: true,
     },
   );
 });
