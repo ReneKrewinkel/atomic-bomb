@@ -9,7 +9,14 @@ import {
   readDotFile,
   writeDotFile,
 } from "../src/config.js";
-import { defaultSkillPath, promptAiConfig } from "../src/ai-config.js";
+import {
+  defaultAiApiKeyEnv,
+  defaultAiBaseUrl,
+  defaultAiModel,
+  defaultAiProvider,
+  defaultSkillPath,
+  promptAiConfig,
+} from "../src/ai-config.js";
 
 const makeTempDir = () =>
   fs.mkdtempSync(path.join(os.tmpdir(), "atomic-bomb-"));
@@ -238,4 +245,32 @@ test("promptAiConfig preserves existing config in non-interactive shells", async
     }),
     existingAiConfig,
   );
+});
+
+test("promptAiConfig only asks for OpenAI API key env in interactive shells", async () => {
+  const questions = [];
+  const answers = ["y", ""];
+
+  assert.deepEqual(
+    await promptAiConfig({
+      defaultSkillPath,
+      isInteractive: true,
+      question: async (message) => {
+        questions.push(message);
+        return answers.shift();
+      },
+    }),
+    {
+      enabled: true,
+      provider: defaultAiProvider,
+      baseUrl: defaultAiBaseUrl,
+      model: defaultAiModel,
+      apiKeyEnv: defaultAiApiKeyEnv,
+      skillPath: defaultSkillPath,
+    },
+  );
+  assert.deepEqual(questions, [
+    "Configure AI provider for --ai? [y/N]: ",
+    "OpenAI API key environment variable name (OPENAI_API_KEY): ",
+  ]);
 });

@@ -130,10 +130,10 @@ Example:
   "scss": true,
   "ai": {
     "enabled": true,
-    "provider": "openai-compatible",
-    "baseUrl": "https://api.example.com/v1",
-    "model": "example-model",
-    "apiKeyEnv": "EXAMPLE_API_KEY",
+    "provider": "openai",
+    "baseUrl": "https://api.openai.com/v1",
+    "model": "gpt-5-mini",
+    "apiKeyEnv": "OPENAI_API_KEY",
     "skillPath": ".skills/atomic-bomb/7.0.0/index.md"
   }
 }
@@ -151,10 +151,10 @@ Fields:
 AI fields:
 
 - `enabled`: whether AI-assisted generation is configured
-- `provider`: provider adapter name, for example `openai` or `openai-compatible`
-- `baseUrl`: provider API base URL
-- `model`: provider model name
-- `apiKeyEnv`: environment variable that contains the API key; secrets are not stored in `.atomic-bomb`
+- `provider`: provider adapter name; platform setup defaults to `openai`
+- `baseUrl`: provider API base URL; platform setup defaults to `https://api.openai.com/v1`
+- `model`: provider model name; platform setup defaults to `gpt-5-mini`
+- `apiKeyEnv`: environment variable that contains the API key; platform setup asks only for this value and defaults to `OPENAI_API_KEY`; secrets are not stored in `.atomic-bomb`
 - `skillPath`: installed skill index path, defaulting to `.skills/atomic-bomb/<atomic-bomb-version>/index.md`
 
 The `--ai` flag uses the configured provider adapter to read the installed skill files, expand the scaffold plan and complete generated files.
@@ -167,7 +167,7 @@ Configure the platform and AI provider first:
 atomic-bomb -p react-ts
 ```
 
-During platform setup, Atomic Bomb can store provider settings in `.atomic-bomb`. The default `skillPath` is:
+During platform setup, Atomic Bomb can store provider settings in `.atomic-bomb`. Provider setup defaults to OpenAI (`provider: "openai"`, `baseUrl: "https://api.openai.com/v1"`, `model: "gpt-5-mini"`) and only asks for the API key environment variable name. The default `skillPath` is:
 
 ```txt
 .skills/atomic-bomb/<atomic-bomb-version>/index.md
