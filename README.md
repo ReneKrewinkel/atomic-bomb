@@ -78,6 +78,7 @@ atomic-bomb --type atom|molecule|organism|template|page --name [NAME](,[NAME],[N
 
 atomic-bomb --type hook --name [NAME](,[NAME],[NAME])
 atomic-bomb --type lib --name [NAME](,[NAME],[NAME])
+atomic-bomb --type service --name [NAME](,[NAME],[NAME])
 
 atomic-bomb --type domain --name [NAME](,[NAME],[NAME])
 atomic-bomb --type subdomain --for [DOMAIN] --name [NAME](,[NAME],[NAME])
@@ -289,6 +290,9 @@ atomic-bomb --type atom --name "data table"
 
 atomic-bomb --type hook --name "use data"
 # useData
+
+atomic-bomb --type service --name "order service"
+# orderService
 
 atomic-bomb --for Orders/Sales --type event --name "order created"
 # orderCreated

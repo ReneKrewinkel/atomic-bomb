@@ -68,7 +68,7 @@ const parseForTarget = (value) => {
   };
 };
 
-const scopedOnlyTypes = ["api", "event", "helper", "model", "service", "state"];
+const scopedOnlyTypes = ["api", "event", "helper", "model", "state"];
 const aiSupportedTypes = ["atom", "molecule", "organism", "page", "template"];
 const implementedAiProviders = ["openai", "openai-compatible"];
 
@@ -348,7 +348,7 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
     return;
   }
 
-  if (["domain", "hook", "lib"].includes(item.type)) {
+  if (["domain", "hook", "lib", "service"].includes(item.type)) {
     createSidecarFiles({
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
@@ -709,7 +709,7 @@ export const runCli = async (args = process.argv) => {
     return;
   }
 
-  if (["domain", "hook", "lib"].includes(options.type)) {
+  if (["domain", "hook", "lib", "service"].includes(options.type)) {
     generateSidecar({ appConfig, ...options });
     return;
   }

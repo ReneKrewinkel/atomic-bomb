@@ -17,6 +17,7 @@ const sidecarTypeDirs = {
   domain: "domains",
   hook: "hooks",
   lib: "lib",
+  service: "services",
 };
 
 const scopedTypeDirs = {
