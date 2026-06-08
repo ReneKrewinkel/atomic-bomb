@@ -36,6 +36,7 @@ export const convertNameForType = ({ type, value }) => {
     "atom",
     "domain",
     "molecule",
+    "module",
     "organism",
     "page",
     "subdomain",

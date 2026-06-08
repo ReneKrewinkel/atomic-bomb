@@ -27,10 +27,13 @@ import {
   checkPlatformDependency,
   createAtomicDirs,
   createComponentDir,
+  createModuleFiles,
+  createScopedModuleFiles,
   createSidecarFiles,
   createScopedSubdomainFiles,
   createSubdomainFiles,
   createWorkflow,
+  getModuleComponentsDir,
   getScopedComponentsDir,
   isAtomicType,
   removeGeneratedItem,
@@ -49,9 +52,31 @@ import {
 import { installSkillBundle } from "./skills.js";
 
 const usage = ({ appName, platforms }) => {
-  const message = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validComponentTypes.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--ai [--prompt PROMPT] [--validate]\n\t--remove [NAME]\n\t--update\n\t--export [FILENAME]\n\t--from [FILENAME]\n`;
+  const message = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validComponentTypes.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n\t--type module --name [NAME](,[NAME],[NAME]) [--for DOMAIN[/SUBDOMAIN]]\n\t--module [MODULENAME] [--for DOMAIN[/SUBDOMAIN]] --type [TYPE] --name [NAME]\n\t--for [MODULENAME] --type [TYPE] --name [NAME]\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--ai [--prompt PROMPT] [--validate]\n\t--remove [NAME]\n\t--update\n\t--export [FILENAME]\n\t--from [FILENAME]\n`;
   console.log(chalk.greenBright(`🤙 ${message}\n\nhttps://atomic-bomb.io`));
   process.exit(2);
+};
+
+const parseParentTarget = (value) => {
+  const parts = value
+    .split("/")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (parts.length === 1) {
+    return {
+      forDomain: convertToPascalCase(parts[0]),
+    };
+  }
+
+  if (parts.length === 2) {
+    return {
+      forDomain: convertToPascalCase(parts[0]),
+      forSubdomain: convertToPascalCase(parts[1]),
+    };
+  }
+
+  return false;
 };
 
 const parseForTarget = (value) => {
@@ -59,6 +84,12 @@ const parseForTarget = (value) => {
     .split("/")
     .map((item) => item.trim())
     .filter(Boolean);
+
+  if (parts.length === 1) {
+    return {
+      moduleName: convertToPascalCase(parts[0]),
+    };
+  }
 
   if (parts.length !== 2) return false;
 
@@ -69,6 +100,14 @@ const parseForTarget = (value) => {
 };
 
 const scopedOnlyTypes = ["api", "event", "helper", "model", "state"];
+const moduleComponentTypes = [
+  "atom",
+  "molecule",
+  "organism",
+  "page",
+  "template",
+];
+const moduleScopedTypes = [...moduleComponentTypes, "hook", "lib", "service"];
 const aiSupportedTypes = ["atom", "molecule", "organism", "page", "template"];
 const implementedAiProviders = ["openai", "openai-compatible"];
 
@@ -85,6 +124,10 @@ export const getAiUnavailableMessage = ({ aiConfig = false, options = {} }) => {
     return "AI generation for scoped subdomain components is not implemented yet. Remove --ai to scaffold normally.";
   }
 
+  if (options.moduleName) {
+    return "AI generation for module components is not implemented yet. Remove --ai to scaffold normally.";
+  }
+
   if (!implementedAiProviders.includes(aiConfig.provider)) {
     return `AI generation requested with provider "${aiConfig.provider}", but no provider adapter is implemented yet. Remove --ai to scaffold normally, or add an adapter for this provider.`;
   }
@@ -99,6 +142,9 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
       type: "string",
     })
     .option("for", {
+      type: "string",
+    })
+    .option("module", {
       type: "string",
     })
     .option("export", {
@@ -124,9 +170,12 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
     }).argv;
 
   try {
-    const actionCount = [argv.export, argv.from, argv.remove, argv.update].filter(
-      Boolean,
-    ).length;
+    const actionCount = [
+      argv.export,
+      argv.from,
+      argv.remove,
+      argv.update,
+    ].filter(Boolean).length;
 
     if (actionCount > 1 || ((argv.remove || argv.update) && argv.name)) {
       usage({ appName, platforms });
@@ -176,11 +225,32 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
     }
 
     const type = argv.type ? argv.type.toLowerCase() : "atom";
+    const forTarget = argv.for
+      ? type === "module" || argv.module
+        ? parseParentTarget(argv.for)
+        : parseForTarget(argv.for)
+      : false;
     if (!validComponentTypes.includes(type)) usage({ appName, platforms });
     if (type === "subdomain" && !argv.for) usage({ appName, platforms });
-    if (scopedOnlyTypes.includes(type) && !argv.for)
+    if (type === "module" && argv.module) usage({ appName, platforms });
+    if (scopedOnlyTypes.includes(type) && !argv.for && !argv.module)
       usage({ appName, platforms });
-    if (argv.for && type !== "subdomain" && !parseForTarget(argv.for)) {
+    if (
+      argv.for &&
+      type === "subdomain" &&
+      parseForTarget(argv.for)?.moduleName === undefined
+    ) {
+      usage({ appName, platforms });
+    }
+    if (argv.for && type !== "subdomain" && !forTarget) {
+      usage({ appName, platforms });
+    }
+    if (
+      type !== "subdomain" &&
+      type !== "module" &&
+      (argv.module || forTarget?.moduleName) &&
+      !moduleScopedTypes.includes(type)
+    ) {
       usage({ appName, platforms });
     }
 
@@ -192,7 +262,8 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
       ...(argv.for && type === "subdomain"
         ? { forDomain: convertToPascalCase(argv.for) }
         : {}),
-      ...(argv.for && type !== "subdomain" ? parseForTarget(argv.for) : {}),
+      ...(argv.for && type !== "subdomain" ? forTarget : {}),
+      ...(argv.module ? { moduleName: convertToPascalCase(argv.module) } : {}),
       platform,
       type,
       names,
@@ -228,6 +299,7 @@ const scaffoldComponent = ({
   name,
   platform,
   scss,
+  storybookScope = [],
   type,
   targetDir = getComponentTargetDir({ componentsDir, name, type }),
 }) => {
@@ -240,6 +312,7 @@ const scaffoldComponent = ({
     componentsDir,
     extension,
     scss,
+    storybookScope,
     templatePath,
   });
 
@@ -318,7 +391,41 @@ const generateComponents = async ({
 };
 
 const generateImportedItem = ({ item, platform, projectConfig }) => {
+  if (item.moduleName) {
+    generateModuleItem({
+      domainName: item.forDomain,
+      item,
+      moduleName: item.moduleName,
+      platform,
+      projectConfig,
+      subdomainName: item.forSubdomain,
+    });
+    return;
+  }
+
+  if (item.forModule) {
+    generateModuleItem({
+      item,
+      moduleName: item.forModule,
+      platform,
+      projectConfig,
+    });
+    return;
+  }
+
   if (item.for && item.type !== "subdomain") {
+    if (item.type === "module") {
+      createModuleFiles({
+        componentsDir: projectConfig.destination,
+        domainName: item.forDomain,
+        extension: projectConfig.extension,
+        name: item.name,
+        scss: projectConfig.scss,
+        subdomainName: item.forSubdomain,
+      });
+      return;
+    }
+
     generateScopedItem({
       domainName: item.forDomain,
       item,
@@ -358,12 +465,78 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
     return;
   }
 
+  if (item.type === "module") {
+    createModuleFiles({
+      componentsDir: projectConfig.destination,
+      extension: projectConfig.extension,
+      name: item.name,
+      scss: projectConfig.scss,
+    });
+    return;
+  }
+
   createSubdomainFiles({
     allowExisting: true,
     componentsDir: projectConfig.destination,
     domainName: item.for,
     extension: projectConfig.extension,
     name: item.name,
+  });
+};
+
+const generateModuleItem = ({
+  domainName,
+  item,
+  moduleName,
+  platform,
+  projectConfig,
+  subdomainName,
+}) => {
+  createModuleFiles({
+    allowExisting: true,
+    componentsDir: projectConfig.destination,
+    domainName,
+    extension: projectConfig.extension,
+    name: moduleName,
+    scss: projectConfig.scss,
+    subdomainName,
+  });
+
+  if (moduleComponentTypes.includes(item.type)) {
+    const moduleComponentsDir = getModuleComponentsDir({
+      componentsDir: projectConfig.destination,
+      domainName,
+      moduleName,
+      subdomainName,
+    });
+
+    scaffoldComponent({
+      componentsDir: moduleComponentsDir,
+      extension: projectConfig.extension,
+      name: item.name,
+      platform,
+      scss: projectConfig.scss,
+      storybookScope: [
+        ...(domainName
+          ? ["domains", domainName, ...(subdomainName ? [subdomainName] : [])]
+          : []),
+        "modules",
+        moduleName,
+      ],
+      type: item.type,
+    });
+    return;
+  }
+
+  createScopedModuleFiles({
+    componentsDir: projectConfig.destination,
+    domainName,
+    extension: projectConfig.extension,
+    moduleName,
+    name: item.name,
+    scss: projectConfig.scss,
+    subdomainName,
+    type: item.type,
   });
 };
 
@@ -407,6 +580,7 @@ const generateScopedItem = ({
       componentsDir: scopedComponentsDir,
       extension: projectConfig.extension,
       scss: projectConfig.scss,
+      storybookScope: ["domains", domainName, subdomainName],
       templatePath,
     });
     return;
@@ -524,6 +698,66 @@ const generateScoped = ({
       generateScopedItem({
         domainName: forDomain,
         item: { name, type },
+        platform,
+        projectConfig,
+        subdomainName: forSubdomain,
+      });
+    });
+
+    showCopyright(appConfig);
+  });
+};
+
+const generateModule = ({
+  appConfig,
+  forDomain,
+  forSubdomain,
+  names,
+  platform,
+}) => {
+  figlet(appConfig.banner, (err, data) => {
+    if (err) error(err.message);
+
+    console.log(chalk.green(`${data}`));
+
+    const projectConfig = prepareProject({ platform });
+
+    names.forEach((name) => {
+      createModuleFiles({
+        componentsDir: projectConfig.destination,
+        domainName: forDomain,
+        extension: projectConfig.extension,
+        name,
+        scss: projectConfig.scss,
+        subdomainName: forSubdomain,
+      });
+    });
+
+    showCopyright(appConfig);
+  });
+};
+
+const generateForModule = ({
+  appConfig,
+  forDomain,
+  forSubdomain,
+  moduleName,
+  names,
+  platform,
+  type,
+}) => {
+  figlet(appConfig.banner, (err, data) => {
+    if (err) error(err.message);
+
+    console.log(chalk.green(`${data}`));
+
+    const projectConfig = prepareProject({ platform });
+
+    names.forEach((name) => {
+      generateModuleItem({
+        item: { name, type },
+        domainName: forDomain,
+        moduleName,
         platform,
         projectConfig,
         subdomainName: forSubdomain,
@@ -702,6 +936,16 @@ export const runCli = async (args = process.argv) => {
     });
 
     if (unavailableMessage) error(unavailableMessage);
+  }
+
+  if (options.type === "module") {
+    generateModule({ appConfig, ...options });
+    return;
+  }
+
+  if (options.moduleName) {
+    generateForModule({ appConfig, ...options });
+    return;
   }
 
   if (options.forSubdomain) {

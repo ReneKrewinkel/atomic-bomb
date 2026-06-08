@@ -48,6 +48,7 @@ export const processTemplates = ({
   platform,
   type,
   name,
+  storybookScope = [],
   destination,
   componentsDir,
   extension,
@@ -56,6 +57,7 @@ export const processTemplates = ({
 }) => {
   try {
     const base = `${componentsDir}/${type}s`;
+    const storybookTitle = [...storybookScope, `${type}s`, name].join("/");
     const files = fs.readdirSync(`${templatePath}/${platform}`);
 
     files.forEach((file) => {
@@ -67,6 +69,7 @@ export const processTemplates = ({
         "utf8",
       );
       const result = content
+        .replace(/\[TYPE\]\/\[NAME\]/g, storybookTitle)
         .replace(/\[NAME\]/g, name)
         .replace(/\[TYPE\]/g, `${type}s`);
 

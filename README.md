@@ -6,6 +6,7 @@ It can create:
 
 - atomic components: `atom`, `molecule`, `organism`, `template`, `page`
 - shared files next to components: `hook`, `lib`
+- feature modules with their own atomic structure
 - domain containers and subdomain folders
 - scoped domain files: `api`, `event`, `helper`, `hook`, `model`, `page`, `service`, `state`
 - structure JSON exports and imports
@@ -79,10 +80,17 @@ atomic-bomb --type atom|molecule|organism|template|page --name [NAME](,[NAME],[N
 atomic-bomb --type hook --name [NAME](,[NAME],[NAME])
 atomic-bomb --type lib --name [NAME](,[NAME],[NAME])
 atomic-bomb --type service --name [NAME](,[NAME],[NAME])
+atomic-bomb --type module --name [NAME](,[NAME],[NAME])
+atomic-bomb --type module --for [DOMAIN] --name [NAME]
+atomic-bomb --type module --for [DOMAIN]/[SUBDOMAIN] --name [NAME]
 
 atomic-bomb --type domain --name [NAME](,[NAME],[NAME])
 atomic-bomb --type subdomain --for [DOMAIN] --name [NAME](,[NAME],[NAME])
 
+atomic-bomb --for [MODULE] --type atom|molecule|organism|template|page --name [NAME]
+atomic-bomb --module [MODULE] --type hook|lib|service --name [NAME]
+atomic-bomb --module [MODULE] --for [DOMAIN] --type atom|molecule|organism|template|page|hook|lib|service --name [NAME]
+atomic-bomb --module [MODULE] --for [DOMAIN]/[SUBDOMAIN] --type atom|molecule|organism|template|page|hook|lib|service --name [NAME]
 atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type atom|molecule|organism|template --name [NAME]
 atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|model|page|service|state --name [NAME]
 
@@ -268,6 +276,7 @@ Component and container types use `PascalCase`:
 - `organism`
 - `template`
 - `page`
+- `module`
 - `domain`
 - `subdomain`
 
@@ -403,9 +412,9 @@ src/hooks
 The generated file contains:
 
 ```ts
-export const useData = () => {}
+export const useData = () => {};
 
-export default useData
+export default useData;
 ```
 
 ## Lib
@@ -429,9 +438,9 @@ src/lib
 The generated file contains:
 
 ```ts
-export const formatDate = () => {}
+export const formatDate = () => {};
 
-export default formatDate
+export default formatDate;
 ```
 
 ## Domains
@@ -451,10 +460,99 @@ src/domains
     └── index.ts
 ```
 
-`src/domains/index.ts` exports the domain:
+The top-level `src/domains/index.ts` barrel exports every domain using its
+domain name as an alias:
 
 ```ts
-export * as Orders from './Orders'
+export * as Orders from "./Orders";
+export * as Billing from "./Billing";
+```
+
+## Modules
+
+Create a feature module next to `components`:
+
+```shell
+atomic-bomb --type module --name "User Manager"
+```
+
+Output:
+
+```shell
+src/modules/UserManager
+├── components
+│   ├── atoms
+│   ├── molecules
+│   ├── organisms
+│   ├── pages
+│   └── templates
+├── hooks
+├── lib
+├── services
+└── index.ts
+```
+
+The top-level `src/modules/index.ts` barrel exports every module using its
+module name as an alias:
+
+```ts
+export * as UserManager from "./UserManager";
+export * as OrderManager from "./OrderManager";
+```
+
+Use either `--for [MODULE]` or `--module [MODULE]` to generate inside it:
+
+```shell
+atomic-bomb --type atom --name Button --for UserManager
+atomic-bomb --type molecule --name UserForm --module UserManager
+atomic-bomb --type page --name Users --for UserManager
+atomic-bomb --type hook --name useUsers --for UserManager
+atomic-bomb --type lib --name userMapper --for UserManager
+atomic-bomb --type service --name userService --module UserManager
+```
+
+Atomic types are generated under `src/modules/UserManager/components`.
+Modules support only atomic components, hooks, libs, and services. Hooks, libs,
+and services are generated in their matching module-level folders. Referencing
+a module that does not exist creates its structure automatically.
+
+Modules can also belong to a domain or subdomain:
+
+```shell
+atomic-bomb --type module --name Checkout --for Orders
+atomic-bomb --type module --name UserManager --for Orders/Sales
+```
+
+These commands create:
+
+```shell
+src/domains/Orders/modules/Checkout
+src/domains/Orders/Sales/modules/UserManager
+```
+
+Generate artifacts inside a nested module by combining `--module` and `--for`:
+
+```shell
+atomic-bomb --module Checkout --for Orders --type page --name CheckoutPage
+atomic-bomb --module UserManager --for Orders/Sales --type atom --name Button
+atomic-bomb --module UserManager --for Orders/Sales --type hook --name useUsers
+atomic-bomb --module UserManager --for Orders/Sales --type lib --name userMapper
+atomic-bomb --module UserManager --for Orders/Sales --type service --name userService
+```
+
+Each nested `modules/index.ts` barrel exports modules using aliases:
+
+```ts
+export * as Checkout from "./Checkout";
+export * as UserManager from "./UserManager";
+```
+
+Module component stories include the module in their Storybook title:
+
+```ts
+title: "modules/UserManager/atoms/Button";
+title: "domains/Orders/modules/Checkout/pages/CheckoutPage";
+title: "domains/Orders/Sales/modules/UserManager/atoms/Button";
 ```
 
 ## Subdomains
@@ -500,6 +598,8 @@ src/domains/Orders
     │   └── index.ts
     ├── models
     │   └── index.ts
+    ├── modules
+    │   └── index.ts
     ├── pages
     │   └── index.ts
     ├── services
@@ -512,15 +612,15 @@ src/domains/Orders
 The subdomain `index.ts` exports every DDD folder:
 
 ```ts
-export * from './components'
-export * from './hooks'
-export * from './services'
-export * from './state'
-export * from './models'
-export * from './events'
-export * from './helpers'
-export * from './api'
-export * from './pages'
+export * from "./components";
+export * from "./hooks";
+export * from "./services";
+export * from "./state";
+export * from "./models";
+export * from "./events";
+export * from "./helpers";
+export * from "./api";
+export * from "./pages";
 ```
 
 ## Scoped Generation
@@ -578,10 +678,23 @@ src/domains/Orders/Sales/services/orderService
 Each folder index is updated:
 
 ```ts
-export { default as orderService } from './orderService'
+export { default as orderService } from "./orderService";
 ```
 
 Scoped generation repairs missing subdomain index files when the subdomain already exists.
+
+Scoped component stories include their domain and subdomain in the Storybook
+title:
+
+```ts
+title: "domains/Orders/Sales/atoms/Logo";
+```
+
+The same convention applies to components rendered directly for a domain:
+
+```ts
+title: "domains/Orders/atoms/Logo";
+```
 
 ## Remove Generated Items
 
@@ -592,15 +705,17 @@ atomic-bomb --remove Logo
 atomic-bomb --remove orderService
 ```
 
-The remove command scans generated `components`, `domains`, `hooks`, and `lib` folders recursively. It removes every matching item directory and cleans matching TypeScript and Sass barrel lines such as:
+The remove command scans generated `components`, `domains`, `modules`,
+`hooks`, and `lib` folders recursively. It removes every matching item
+directory and cleans matching TypeScript and Sass barrel lines such as:
 
 ```ts
-export { default as Logo } from './Logo'
-export * as Orders from './Orders'
+export { default as Logo } from "./Logo";
+export * as Orders from "./Orders";
 ```
 
 ```scss
-@use './Logo';
+@use "./Logo";
 ```
 
 ## Export Structure
@@ -624,6 +739,13 @@ Example:
     { "type": "lib", "name": "formatDate" },
     { "type": "domain", "name": "Orders" },
     { "type": "subdomain", "for": "Orders", "name": "Sales" },
+    { "type": "module", "for": "Orders/Sales", "name": "UserManager" },
+    {
+      "type": "atom",
+      "for": "Orders/Sales",
+      "module": "UserManager",
+      "name": "Button"
+    },
     { "type": "service", "for": "Orders/Sales", "name": "orderService" }
   ]
 }
@@ -646,6 +768,18 @@ Scoped items must use:
   "type": "service",
   "for": "Orders/Sales",
   "name": "orderService"
+}
+```
+
+Module items use `for` for their owning domain or subdomain. Artifacts inside
+the module use a separate `module` field:
+
+```json
+{
+  "type": "atom",
+  "for": "Orders/Sales",
+  "module": "UserManager",
+  "name": "Button"
 }
 ```
 
