@@ -21,7 +21,7 @@ const typeCases = [
   ["lib", [], "format date", ["formatDate"]],
   ["hook", [], "use data", ["useData"]],
   ["domain", [], "sales orders", ["SalesOrders"]],
-  ["service", ["--for", "orders/sales"], "order service", ["orderService"]],
+  ["service", [], "order service", ["orderService"]],
   ["state", ["--for", "orders/sales"], "order state", ["orderState"]],
   ["subdomain", ["--for", "orders"], "sales", ["Sales"]],
 ];
@@ -471,6 +471,30 @@ test("parseArgs supports scoped service generation inside a subdomain", () => {
     {
       forDomain: "Orders",
       forSubdomain: "Sales",
+      platform: "react-ts",
+      type: "service",
+      names: ["orderService"],
+    },
+  );
+});
+
+test("parseArgs supports root service generation", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "service",
+        "--name",
+        "order service",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
       platform: "react-ts",
       type: "service",
       names: ["orderService"],

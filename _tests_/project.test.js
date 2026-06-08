@@ -200,6 +200,37 @@ test("createSidecarFiles creates hook files and root hooks export", () => {
   );
 });
 
+test("createSidecarFiles creates service files and root services export", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const servicesDir = path.join(dir, "src/services");
+
+  silenceConsole(() =>
+    createSidecarFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "orderService",
+      type: "service",
+    }),
+  );
+
+  assert.equal(
+    fs.readFileSync(
+      path.join(servicesDir, "orderService/orderService.ts"),
+      "utf8",
+    ),
+    "export const orderService = () => {}\n\nexport default orderService\n",
+  );
+  assert.equal(
+    fs.readFileSync(path.join(servicesDir, "orderService/index.ts"), "utf8"),
+    "export { default } from './orderService'\n",
+  );
+  assert.match(
+    fs.readFileSync(path.join(servicesDir, "index.ts"), "utf8"),
+    /export \{ default as orderService \} from '\.\/orderService'/,
+  );
+});
+
 test("createDomainFiles creates a domain directory and root domains export", () => {
   const dir = makeTempDir();
   const componentsDir = path.join(dir, "src/components");
@@ -482,11 +513,13 @@ test("removeGeneratedItem removes matching generated directories and barrel refe
     "src/domains/Orders/Sales/components/atoms",
   );
   const hooksDir = path.join(dir, "src/hooks");
+  const servicesDir = path.join(dir, "src/services");
 
   fs.mkdirSync(path.join(atomsDir, "DataTable"), { recursive: true });
   fs.mkdirSync(path.join(atomsDir, "KeepMe"), { recursive: true });
   fs.mkdirSync(path.join(scopedAtomsDir, "DataTable"), { recursive: true });
   fs.mkdirSync(path.join(hooksDir, "dataTable"), { recursive: true });
+  fs.mkdirSync(path.join(servicesDir, "dataTable"), { recursive: true });
   fs.writeFileSync(
     path.join(atomsDir, "index.tsx"),
     [
@@ -515,15 +548,24 @@ test("removeGeneratedItem removes matching generated directories and barrel refe
       "",
     ].join("\n"),
   );
+  fs.writeFileSync(
+    path.join(servicesDir, "index.ts"),
+    [
+      "export { default as dataTable } from './dataTable'",
+      "export { default as keepService } from './keepService'",
+      "",
+    ].join("\n"),
+  );
 
   const removed = silenceConsole(() =>
     removeGeneratedItem({ componentsDir, name: "data table" }),
   );
 
-  assert.equal(removed.length, 3);
+  assert.equal(removed.length, 4);
   assert.equal(fs.existsSync(path.join(atomsDir, "DataTable")), false);
   assert.equal(fs.existsSync(path.join(scopedAtomsDir, "DataTable")), false);
   assert.equal(fs.existsSync(path.join(hooksDir, "dataTable")), false);
+  assert.equal(fs.existsSync(path.join(servicesDir, "dataTable")), false);
   assert.equal(fs.existsSync(path.join(atomsDir, "KeepMe")), true);
   assert.match(
     fs.readFileSync(path.join(atomsDir, "index.tsx"), "utf8"),
@@ -536,6 +578,10 @@ test("removeGeneratedItem removes matching generated directories and barrel refe
   assert.doesNotMatch(
     fs.readFileSync(path.join(atomsDir, "_index.scss"), "utf8"),
     /DataTable/,
+  );
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(servicesDir, "index.ts"), "utf8"),
+    /dataTable/,
   );
   assert.doesNotMatch(
     fs.readFileSync(path.join(hooksDir, "index.ts"), "utf8"),

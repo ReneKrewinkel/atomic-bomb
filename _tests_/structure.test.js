@@ -90,11 +90,18 @@ test("collectGenerationStructure exports directories without file contents", () 
   });
   fs.mkdirSync(path.join(dir, "src/lib/FormatDate"), { recursive: true });
   fs.mkdirSync(path.join(dir, "src/hooks/UseActive"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "src/services/orderService"), {
+    recursive: true,
+  });
   fs.mkdirSync(path.join(dir, "src/domains/Billing/Invoicing"), {
     recursive: true,
   });
   fs.writeFileSync(path.join(dir, "src/lib/FormatDate/FormatDate.ts"), "");
   fs.writeFileSync(path.join(dir, "src/hooks/UseActive/UseActive.ts"), "");
+  fs.writeFileSync(
+    path.join(dir, "src/services/orderService/orderService.ts"),
+    "",
+  );
   fs.writeFileSync(path.join(dir, "src/domains/Billing/index.ts"), "");
   fs.writeFileSync(
     path.join(dir, "src/domains/Billing/Invoicing/index.ts"),
@@ -137,6 +144,7 @@ test("collectGenerationStructure exports directories without file contents", () 
         { name: "Billing", type: "domain" },
         { name: "UseActive", type: "hook" },
         { name: "FormatDate", type: "lib" },
+        { name: "orderService", type: "service" },
         { for: "Billing", name: "Invoicing", type: "subdomain" },
         { for: "Billing/Invoicing", name: "useOrders", type: "hook" },
         {

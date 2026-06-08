@@ -44,6 +44,7 @@ const sidecarDirectories = {
   domain: "domains",
   hook: "hooks",
   lib: "lib",
+  service: "services",
 };
 
 const sidecarIcons = {
@@ -242,6 +243,7 @@ export const removeGeneratedItem = ({ componentsDir, name }) => {
     getSidecarDir({ componentsDir, type: "domain" }),
     getSidecarDir({ componentsDir, type: "hook" }),
     getSidecarDir({ componentsDir, type: "lib" }),
+    getSidecarDir({ componentsDir, type: "service" }),
   ].filter((item, index, items) => items.indexOf(item) === index);
 
   const targets = roots
