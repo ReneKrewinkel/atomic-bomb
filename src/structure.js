@@ -37,13 +37,32 @@ const scopedAtomicTypeDirs = {
   organism: "organisms",
   template: "templates",
 };
+const moduleTypeDirs = {
+  hook: "hooks",
+  lib: "lib",
+  service: "services",
+};
+const moduleTypes = new Set([
+  "atom",
+  "hook",
+  "lib",
+  "molecule",
+  "organism",
+  "page",
+  "service",
+  "template",
+]);
 
 const itemSchema = (type) =>
   z.object({
     for: z
       .string()
-      .regex(/^[^/]+\/[^/]+$/, "must be formatted as DOMAIN/SUBDOMAIN")
+      .regex(
+        /^[^/]+(?:\/[^/]+)?$/,
+        "must be formatted as MODULE or DOMAIN/SUBDOMAIN",
+      )
       .optional(),
+    module: z.string().min(1).optional(),
     name: z.string().min(1),
     type: z.literal(type),
   });
@@ -55,6 +74,7 @@ export const structureItemSchema = z.discriminatedUnion("type", [
   itemSchema("helper"),
   itemSchema("molecule"),
   itemSchema("model"),
+  itemSchema("module"),
   itemSchema("organism"),
   itemSchema("page"),
   itemSchema("service"),
@@ -70,11 +90,24 @@ export const structureItemSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-export const generationStructureSchema = z.object({
-  items: z.array(structureItemSchema),
-  platform: z.string().optional(),
-  version: z.literal(1),
-});
+export const generationStructureSchema = z
+  .object({
+    items: z.array(structureItemSchema),
+    platform: z.string().optional(),
+    version: z.literal(1),
+  })
+  .superRefine(({ items }, context) => {
+    items.forEach((item, index) => {
+      if (item.module && !moduleTypes.has(item.type)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            "module artifacts must be atom, molecule, organism, template, page, hook, lib, or service",
+          path: ["items", index, "type"],
+        });
+      }
+    });
+  });
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, "utf8"));
 
@@ -107,6 +140,53 @@ export const collectGenerationStructure = ({
 }) => {
   const items = [];
   const logicExtension = getLogicExtension(extension);
+  const collectModules = ({ modulesDir, parentFor }) => {
+    visibleDirectories(modulesDir).forEach((moduleName) => {
+      const moduleDir = path.join(modulesDir, moduleName);
+
+      if (!fs.existsSync(path.join(moduleDir, `index.${logicExtension}`))) {
+        return;
+      }
+
+      items.push({
+        ...(parentFor ? { for: parentFor } : {}),
+        type: "module",
+        name: moduleName,
+      });
+
+      Object.entries(atomicTypeDirs).forEach(([type, dirName]) => {
+        visibleDirectories(path.join(moduleDir, "components", dirName)).forEach(
+          (name) => {
+            items.push({
+              ...(parentFor ? { for: parentFor } : {}),
+              module: moduleName,
+              name,
+              type,
+            });
+          },
+        );
+      });
+
+      Object.entries(moduleTypeDirs).forEach(([type, dirName]) => {
+        visibleDirectories(path.join(moduleDir, dirName)).forEach((name) => {
+          if (
+            hasIndex({
+              dir: path.join(moduleDir, dirName),
+              extension: logicExtension,
+              name,
+            })
+          ) {
+            items.push({
+              ...(parentFor ? { for: parentFor } : {}),
+              module: moduleName,
+              name,
+              type,
+            });
+          }
+        });
+      });
+    });
+  };
 
   Object.entries(atomicTypeDirs).forEach(([type, dirName]) => {
     visibleDirectories(path.join(componentsDir, dirName)).forEach((name) => {
@@ -127,48 +207,63 @@ export const collectGenerationStructure = ({
     });
   });
 
+  const modulesDir = getSidecarDir({ componentsDir, type: "module" });
+  collectModules({ modulesDir });
+
   const domainsDir = getSidecarDir({ componentsDir, type: "domain" });
   visibleDirectories(domainsDir).forEach((domainName) => {
     const domainDir = path.join(domainsDir, domainName);
 
-    visibleDirectories(domainDir).forEach((name) => {
-      if (
-        fs.existsSync(path.join(domainDir, name, `index.${logicExtension}`))
-      ) {
-        items.push({
-          for: domainName,
-          name,
-          type: "subdomain",
-        });
-
-        const subdomainDir = path.join(domainDir, name);
-        const scopedFor = `${domainName}/${name}`;
-
-        Object.entries(scopedAtomicTypeDirs).forEach(([type, dirName]) => {
-          visibleDirectories(
-            path.join(subdomainDir, "components", dirName),
-          ).forEach((itemName) => {
-            items.push({ for: scopedFor, name: itemName, type });
-          });
-        });
-
-        Object.entries(scopedTypeDirs).forEach(([type, dirName]) => {
-          visibleDirectories(path.join(subdomainDir, dirName)).forEach(
-            (itemName) => {
-              if (
-                hasIndex({
-                  dir: path.join(subdomainDir, dirName),
-                  extension: logicExtension,
-                  name: itemName,
-                })
-              ) {
-                items.push({ for: scopedFor, name: itemName, type });
-              }
-            },
-          );
-        });
-      }
+    collectModules({
+      modulesDir: path.join(domainDir, "modules"),
+      parentFor: domainName,
     });
+
+    visibleDirectories(domainDir)
+      .filter((name) => name !== "modules")
+      .forEach((name) => {
+        if (
+          fs.existsSync(path.join(domainDir, name, `index.${logicExtension}`))
+        ) {
+          items.push({
+            for: domainName,
+            name,
+            type: "subdomain",
+          });
+
+          const subdomainDir = path.join(domainDir, name);
+          const scopedFor = `${domainName}/${name}`;
+
+          collectModules({
+            modulesDir: path.join(subdomainDir, "modules"),
+            parentFor: scopedFor,
+          });
+
+          Object.entries(scopedAtomicTypeDirs).forEach(([type, dirName]) => {
+            visibleDirectories(
+              path.join(subdomainDir, "components", dirName),
+            ).forEach((itemName) => {
+              items.push({ for: scopedFor, name: itemName, type });
+            });
+          });
+
+          Object.entries(scopedTypeDirs).forEach(([type, dirName]) => {
+            visibleDirectories(path.join(subdomainDir, dirName)).forEach(
+              (itemName) => {
+                if (
+                  hasIndex({
+                    dir: path.join(subdomainDir, dirName),
+                    extension: logicExtension,
+                    name: itemName,
+                  })
+                ) {
+                  items.push({ for: scopedFor, name: itemName, type });
+                }
+              },
+            );
+          });
+        }
+      });
   });
 
   return {
@@ -209,17 +304,31 @@ export const readGenerationStructure = (filePath) => {
 
     return {
       ...result.data,
-      items: result.data.items.map((item) => ({
-        ...item,
-        ...(item.for ? { for: normalizeFor(item.for) } : {}),
-        ...(item.for && item.for.includes("/")
-          ? {
-              forDomain: normalizeFor(item.for).split("/")[0],
-              forSubdomain: normalizeFor(item.for).split("/")[1],
-            }
-          : {}),
-        name: convertNameForType({ type: item.type, value: item.name }),
-      })),
+      items: result.data.items.map((item) => {
+        const normalizedFor = item.for ? normalizeFor(item.for) : false;
+        const hasParentScope = item.module || item.type === "module";
+
+        return {
+          ...item,
+          ...(normalizedFor ? { for: normalizedFor } : {}),
+          ...(item.module ? { module: convertToPascalCase(item.module) } : {}),
+          ...(item.module
+            ? { moduleName: convertToPascalCase(item.module) }
+            : {}),
+          ...(normalizedFor && (normalizedFor.includes("/") || hasParentScope)
+            ? {
+                forDomain: normalizedFor.split("/")[0],
+                ...(normalizedFor.includes("/")
+                  ? { forSubdomain: normalizedFor.split("/")[1] }
+                  : {}),
+              }
+            : {}),
+          ...(normalizedFor && !normalizedFor.includes("/") && !hasParentScope
+            ? { forModule: normalizedFor }
+            : {}),
+          name: convertNameForType({ type: item.type, value: item.name }),
+        };
+      }),
     };
   } catch (err) {
     error(`${filePath}: ${err.message}`);

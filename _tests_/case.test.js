@@ -59,4 +59,8 @@ test("convertNameForType uses PascalCase for component and domain containers", (
     convertNameForType({ type: "subdomain", value: "order intake" }),
     "OrderIntake",
   );
+  assert.equal(
+    convertNameForType({ type: "module", value: "user manager" }),
+    "UserManager",
+  );
 });

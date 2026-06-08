@@ -10,6 +10,7 @@ export const validComponentTypes = [
   "helper",
   "molecule",
   "model",
+  "module",
   "organism",
   "template",
   "page",
@@ -40,10 +41,16 @@ const scopedFileDirectories = {
   service: "services",
   state: "state",
 };
+const moduleFileDirectories = {
+  hook: "hooks",
+  lib: "lib",
+  service: "services",
+};
 const sidecarDirectories = {
   domain: "domains",
   hook: "hooks",
   lib: "lib",
+  module: "modules",
   service: "services",
 };
 
@@ -55,6 +62,7 @@ const sidecarIcons = {
 
 const subdomainDirectories = [
   "components",
+  "modules",
   "hooks",
   "services",
   "state",
@@ -64,6 +72,7 @@ const subdomainDirectories = [
   "api",
   "pages",
 ];
+const moduleDirectories = ["components", "hooks", "services", "lib"];
 
 const appendUniqueLine = ({ filePath, line }) => {
   const content = fs.existsSync(filePath)
@@ -76,11 +85,9 @@ const appendUniqueLine = ({ filePath, line }) => {
 };
 
 const getRemoveNameCandidates = (name) =>
-  [
-    name.trim(),
-    convertToPascalCase(name),
-    convertToCamelCase(name),
-  ].filter(Boolean);
+  [name.trim(), convertToPascalCase(name), convertToCamelCase(name)].filter(
+    Boolean,
+  );
 
 const visibleDirectoriesRecursive = (dir) => {
   if (!fs.existsSync(dir)) return [];
@@ -243,6 +250,7 @@ export const removeGeneratedItem = ({ componentsDir, name }) => {
     getSidecarDir({ componentsDir, type: "domain" }),
     getSidecarDir({ componentsDir, type: "hook" }),
     getSidecarDir({ componentsDir, type: "lib" }),
+    getSidecarDir({ componentsDir, type: "module" }),
     getSidecarDir({ componentsDir, type: "service" }),
   ].filter((item, index, items) => items.indexOf(item) === index);
 
@@ -278,6 +286,51 @@ export const getSubdomainDir = ({ componentsDir, domainName, subdomainName }) =>
     getSidecarDir({ componentsDir, type: "domain" }),
     domainName,
     subdomainName,
+  );
+
+export const getModuleDir = ({ componentsDir, moduleName }) =>
+  path.join(getSidecarDir({ componentsDir, type: "module" }), moduleName);
+
+export const getScopedModuleDir = ({
+  componentsDir,
+  domainName,
+  moduleName,
+  subdomainName,
+}) => {
+  if (subdomainName) {
+    return path.join(
+      getSubdomainDir({ componentsDir, domainName, subdomainName }),
+      "modules",
+      moduleName,
+    );
+  }
+
+  if (domainName) {
+    return path.join(
+      getSidecarDir({ componentsDir, type: "domain" }),
+      domainName,
+      "modules",
+      moduleName,
+    );
+  }
+
+  return getModuleDir({ componentsDir, moduleName });
+};
+
+export const getModuleComponentsDir = ({
+  componentsDir,
+  domainName,
+  moduleName,
+  subdomainName,
+}) =>
+  path.join(
+    getScopedModuleDir({
+      componentsDir,
+      domainName,
+      moduleName,
+      subdomainName,
+    }),
+    "components",
   );
 
 export const getLogicExtension = (extension) => {
@@ -349,6 +402,94 @@ export const createDomainFiles = ({ componentsDir, extension, name }) => {
   check(`🏢 domains/${name}`);
   check(`🏢 domains/${name}/index.${logicExtension}`);
   check(`🏢 domains/index.${logicExtension}`);
+};
+
+export const createModuleFiles = ({
+  allowExisting = false,
+  componentsDir,
+  domainName,
+  extension,
+  name,
+  scss = false,
+  subdomainName,
+}) => {
+  const logicExtension = getLogicExtension(extension);
+  let modulesDir = getSidecarDir({ componentsDir, type: "module" });
+
+  if (subdomainName) {
+    createSubdomainFiles({
+      allowExisting: true,
+      componentsDir,
+      domainName,
+      extension,
+      name: subdomainName,
+      scss,
+    });
+    modulesDir = path.join(
+      getSubdomainDir({ componentsDir, domainName, subdomainName }),
+      "modules",
+    );
+  } else if (domainName) {
+    const domainsDir = getSidecarDir({ componentsDir, type: "domain" });
+    const domainDir = path.join(domainsDir, domainName);
+
+    fs.ensureDirSync(domainDir, 0o744);
+    fs.ensureFileSync(path.join(domainsDir, `index.${logicExtension}`));
+    fs.ensureFileSync(path.join(domainDir, `index.${logicExtension}`));
+    appendUniqueLine({
+      filePath: path.join(domainsDir, `index.${logicExtension}`),
+      line: `export * as ${domainName} from './${domainName}'`,
+    });
+    appendUniqueLine({
+      filePath: path.join(domainDir, `index.${logicExtension}`),
+      line: "export * from './modules'",
+    });
+    modulesDir = path.join(domainDir, "modules");
+  }
+
+  const moduleDir = getScopedModuleDir({
+    componentsDir,
+    domainName,
+    moduleName: name,
+    subdomainName,
+  });
+  const modulesIndex = path.join(modulesDir, `index.${logicExtension}`);
+
+  if (fs.existsSync(moduleDir) && !allowExisting) {
+    error(`modules/${name} exists`);
+  }
+
+  fs.ensureDirSync(moduleDir, 0o744);
+  fs.ensureFileSync(modulesIndex);
+  appendUniqueLine({
+    filePath: modulesIndex,
+    line: `export * as ${name} from './${name}'`,
+  });
+
+  moduleDirectories.forEach((subdir) => {
+    fs.ensureDirSync(path.join(moduleDir, subdir), 0o744);
+    fs.ensureFileSync(path.join(moduleDir, subdir, `index.${logicExtension}`));
+  });
+  createAtomicDirs({
+    dir: getModuleComponentsDir({
+      componentsDir,
+      domainName,
+      moduleName: name,
+      subdomainName,
+    }),
+    extension,
+    scss,
+  });
+
+  fs.writeFileSync(
+    path.join(moduleDir, `index.${logicExtension}`),
+    `${moduleDirectories
+      .map((subdir) => `export * from './${subdir}'`)
+      .join("\n")}\n`,
+  );
+
+  check(`📦 modules/${name}`);
+  check(`📦 modules/${name}/index.${logicExtension}`);
 };
 
 export const createSubdomainFiles = ({
@@ -467,6 +608,67 @@ export const createScopedSubdomainFiles = ({
   check(
     `🗄️ domains/${domainName}/${subdomainName}/${folder}/index.${logicExtension}`,
   );
+};
+
+export const createScopedModuleFiles = ({
+  componentsDir,
+  domainName,
+  extension,
+  moduleName,
+  name,
+  scss = false,
+  subdomainName,
+  type,
+}) => {
+  const logicExtension = getLogicExtension(extension);
+  const moduleDir = getScopedModuleDir({
+    componentsDir,
+    domainName,
+    moduleName,
+    subdomainName,
+  });
+  const folder = moduleFileDirectories[type];
+
+  if (!folder || type === "page") {
+    error(`${type} cannot be created as a module sidecar`);
+  }
+
+  createModuleFiles({
+    allowExisting: true,
+    componentsDir,
+    domainName,
+    extension,
+    name: moduleName,
+    scss,
+    subdomainName,
+  });
+
+  const baseDir = path.join(moduleDir, folder);
+  const targetDir = path.join(baseDir, name);
+  const folderIndex = path.join(baseDir, `index.${logicExtension}`);
+
+  if (fs.existsSync(targetDir)) {
+    error(`modules/${moduleName}/${folder}/${name} exists`);
+  }
+
+  fs.ensureDirSync(targetDir, 0o744);
+  fs.ensureFileSync(folderIndex);
+  fs.writeFileSync(
+    path.join(targetDir, `${name}.${logicExtension}`),
+    `export const ${name} = () => {}\n\nexport default ${name}\n`,
+  );
+  fs.writeFileSync(
+    path.join(targetDir, `index.${logicExtension}`),
+    `export { default } from './${name}'\n`,
+  );
+  appendUniqueLine({
+    filePath: folderIndex,
+    line: `export { default as ${name} } from './${name}'`,
+  });
+
+  check(`📦 modules/${moduleName}/${folder}/${name}/${name}.${logicExtension}`);
+  check(`📦 modules/${moduleName}/${folder}/${name}/index.${logicExtension}`);
+  check(`📦 modules/${moduleName}/${folder}/index.${logicExtension}`);
 };
 
 export const getScopedComponentsDir = ({

@@ -21,6 +21,15 @@ test("generationStructureSchema validates supported items", () => {
       { name: "FormatDate", type: "lib" },
       { name: "UseActive", type: "hook" },
       { name: "Billing", type: "domain" },
+      { name: "UserManager", type: "module" },
+      { module: "UserManager", name: "Button", type: "atom" },
+      { for: "Billing", name: "Admin", type: "module" },
+      {
+        for: "Billing/Invoicing",
+        module: "Admin",
+        name: "Button",
+        type: "atom",
+      },
       { for: "Billing", name: "Invoicing", type: "subdomain" },
       { for: "Billing/Invoicing", name: "useOrders", type: "hook" },
       { for: "Billing/Invoicing", name: "orderService", type: "service" },
@@ -71,13 +80,45 @@ test("generationStructureSchema rejects subdomains without for", () => {
   assert.equal(result.success, false);
 });
 
-test("generationStructureSchema rejects scoped items without domain and subdomain", () => {
+test("generationStructureSchema accepts one-segment module scopes", () => {
   const result = generationStructureSchema.safeParse({
     items: [{ for: "Billing", name: "useOrders", type: "hook" }],
     version: 1,
   });
 
+  assert.equal(result.success, true);
+});
+
+test("generationStructureSchema rejects scopes deeper than domain/subdomain", () => {
+  const result = generationStructureSchema.safeParse({
+    items: [
+      {
+        for: "Billing/Invoicing/Archive",
+        name: "useOrders",
+        type: "hook",
+      },
+    ],
+    version: 1,
+  });
+
   assert.equal(result.success, false);
+});
+
+test("generationStructureSchema rejects unsupported module artifact types", () => {
+  for (const type of ["api", "event", "helper", "model", "state"]) {
+    const result = generationStructureSchema.safeParse({
+      items: [
+        {
+          module: "UserManager",
+          name: "generatedItem",
+          type,
+        },
+      ],
+      version: 1,
+    });
+
+    assert.equal(result.success, false);
+  }
 });
 
 test("collectGenerationStructure exports directories without file contents", () => {
@@ -93,6 +134,29 @@ test("collectGenerationStructure exports directories without file contents", () 
   fs.mkdirSync(path.join(dir, "src/services/orderService"), {
     recursive: true,
   });
+  fs.mkdirSync(
+    path.join(dir, "src/modules/UserManager/components/atoms/Button"),
+    {
+      recursive: true,
+    },
+  );
+  fs.mkdirSync(path.join(dir, "src/modules/UserManager/services/userService"), {
+    recursive: true,
+  });
+  fs.mkdirSync(
+    path.join(
+      dir,
+      "src/domains/Billing/modules/Admin/components/atoms/AdminButton",
+    ),
+    { recursive: true },
+  );
+  fs.mkdirSync(
+    path.join(
+      dir,
+      "src/domains/Billing/Invoicing/modules/Invoice/components/atoms/InvoiceButton",
+    ),
+    { recursive: true },
+  );
   fs.mkdirSync(path.join(dir, "src/domains/Billing/Invoicing"), {
     recursive: true,
   });
@@ -100,6 +164,19 @@ test("collectGenerationStructure exports directories without file contents", () 
   fs.writeFileSync(path.join(dir, "src/hooks/UseActive/UseActive.ts"), "");
   fs.writeFileSync(
     path.join(dir, "src/services/orderService/orderService.ts"),
+    "",
+  );
+  fs.writeFileSync(path.join(dir, "src/modules/UserManager/index.ts"), "");
+  fs.writeFileSync(
+    path.join(dir, "src/modules/UserManager/services/userService/index.ts"),
+    "",
+  );
+  fs.writeFileSync(
+    path.join(dir, "src/domains/Billing/modules/Admin/index.ts"),
+    "",
+  );
+  fs.writeFileSync(
+    path.join(dir, "src/domains/Billing/Invoicing/modules/Invoice/index.ts"),
     "",
   );
   fs.writeFileSync(path.join(dir, "src/domains/Billing/index.ts"), "");
@@ -145,7 +222,28 @@ test("collectGenerationStructure exports directories without file contents", () 
         { name: "UseActive", type: "hook" },
         { name: "FormatDate", type: "lib" },
         { name: "orderService", type: "service" },
+        { name: "UserManager", type: "module" },
+        { module: "UserManager", name: "Button", type: "atom" },
+        { module: "UserManager", name: "userService", type: "service" },
+        { for: "Billing", name: "Admin", type: "module" },
+        {
+          for: "Billing",
+          module: "Admin",
+          name: "AdminButton",
+          type: "atom",
+        },
         { for: "Billing", name: "Invoicing", type: "subdomain" },
+        {
+          for: "Billing/Invoicing",
+          name: "Invoice",
+          type: "module",
+        },
+        {
+          for: "Billing/Invoicing",
+          module: "Invoice",
+          name: "InvoiceButton",
+          type: "atom",
+        },
         { for: "Billing/Invoicing", name: "useOrders", type: "hook" },
         {
           for: "Billing/Invoicing",
@@ -224,6 +322,66 @@ test("readGenerationStructure normalizes scoped for paths", () => {
         forSubdomain: "Sales",
         name: "orderService",
         type: "service",
+      },
+    ],
+    version: 1,
+  });
+});
+
+test("readGenerationStructure normalizes module scopes", () => {
+  const dir = makeTempDir();
+  const filePath = path.join(dir, "structure.json");
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      items: [{ for: "user manager", name: "button", type: "atom" }],
+      version: 1,
+    }),
+  );
+
+  assert.deepEqual(readGenerationStructure(filePath), {
+    items: [
+      {
+        for: "UserManager",
+        forModule: "UserManager",
+        name: "Button",
+        type: "atom",
+      },
+    ],
+    version: 1,
+  });
+});
+
+test("readGenerationStructure normalizes nested module scopes", () => {
+  const dir = makeTempDir();
+  const filePath = path.join(dir, "structure.json");
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      items: [
+        {
+          for: "orders/sales",
+          module: "user manager",
+          name: "button",
+          type: "atom",
+        },
+      ],
+      version: 1,
+    }),
+  );
+
+  assert.deepEqual(readGenerationStructure(filePath), {
+    items: [
+      {
+        for: "Orders/Sales",
+        forDomain: "Orders",
+        forSubdomain: "Sales",
+        module: "UserManager",
+        moduleName: "UserManager",
+        name: "Button",
+        type: "atom",
       },
     ],
     version: 1,

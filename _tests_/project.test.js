@@ -8,12 +8,17 @@ import {
   createAtomicDirs,
   createDomainFiles,
   createLibFiles,
+  createModuleFiles,
+  createScopedModuleFiles,
   createScopedSubdomainFiles,
   createSidecarFiles,
   createSubdomainFiles,
   createWorkflow,
   getLibDir,
   getLogicExtension,
+  getModuleComponentsDir,
+  getModuleDir,
+  getScopedModuleDir,
   getSidecarDir,
   removeGeneratedItem,
 } from "../src/project.js";
@@ -259,6 +264,32 @@ test("createDomainFiles creates a domain directory and root domains export", () 
   );
 });
 
+test("top domains barrel exports each domain with an alias", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+
+  silenceConsole(() => {
+    createDomainFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "Billing",
+    });
+    createDomainFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "Orders",
+    });
+  });
+
+  assert.equal(
+    fs.readFileSync(path.join(dir, "src/domains/index.ts"), "utf8"),
+    [
+      "export * as Billing from './Billing'",
+      "export * as Orders from './Orders'",
+    ].join("\n"),
+  );
+});
+
 test("createSidecarFiles routes domain to a domain directory", () => {
   const dir = makeTempDir();
   const componentsDir = path.join(dir, "src/components");
@@ -282,6 +313,223 @@ test("createSidecarFiles routes domain to a domain directory", () => {
   );
 });
 
+test("createModuleFiles creates a module with atomic and sidecar directories", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const moduleDir = path.join(dir, "src/modules/UserManager");
+
+  silenceConsole(() =>
+    createModuleFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "UserManager",
+      scss: true,
+    }),
+  );
+
+  assert.equal(
+    getModuleDir({ componentsDir, moduleName: "UserManager" }),
+    moduleDir,
+  );
+  assert.equal(
+    getModuleComponentsDir({ componentsDir, moduleName: "UserManager" }),
+    path.join(moduleDir, "components"),
+  );
+
+  for (const atomicDir of [
+    "atoms",
+    "molecules",
+    "organisms",
+    "pages",
+    "templates",
+  ]) {
+    assert.equal(
+      fs.existsSync(path.join(moduleDir, "components", atomicDir, "index.tsx")),
+      true,
+    );
+  }
+
+  for (const sidecarDir of ["hooks", "lib", "services"]) {
+    assert.equal(
+      fs.existsSync(path.join(moduleDir, sidecarDir, "index.ts")),
+      true,
+    );
+  }
+
+  for (const unsupportedDir of [
+    "api",
+    "events",
+    "helpers",
+    "models",
+    "state",
+  ]) {
+    assert.equal(fs.existsSync(path.join(moduleDir, unsupportedDir)), false);
+  }
+
+  assert.match(
+    fs.readFileSync(path.join(dir, "src/modules/index.ts"), "utf8"),
+    /export \* as UserManager from '\.\/UserManager'/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(moduleDir, "index.ts"), "utf8"),
+    /export \* from '\.\/components'/,
+  );
+});
+
+test("top modules barrel exports each module with an alias without duplicates", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+
+  silenceConsole(() => {
+    createModuleFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "UserManager",
+    });
+    createModuleFiles({
+      componentsDir,
+      extension: "tsx",
+      name: "OrderManager",
+    });
+    createModuleFiles({
+      allowExisting: true,
+      componentsDir,
+      extension: "tsx",
+      name: "UserManager",
+    });
+  });
+
+  assert.equal(
+    fs.readFileSync(path.join(dir, "src/modules/index.ts"), "utf8"),
+    [
+      "export * as UserManager from './UserManager'",
+      "export * as OrderManager from './OrderManager'",
+    ].join("\n"),
+  );
+});
+
+test("createModuleFiles creates domain and subdomain modules with alias barrels", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+
+  silenceConsole(() => {
+    createModuleFiles({
+      componentsDir,
+      domainName: "Orders",
+      extension: "tsx",
+      name: "Checkout",
+    });
+    createModuleFiles({
+      componentsDir,
+      domainName: "Orders",
+      extension: "tsx",
+      name: "UserManager",
+      subdomainName: "Sales",
+    });
+  });
+
+  assert.equal(
+    getScopedModuleDir({
+      componentsDir,
+      domainName: "Orders",
+      moduleName: "Checkout",
+    }),
+    path.join(dir, "src/domains/Orders/modules/Checkout"),
+  );
+  assert.equal(
+    getScopedModuleDir({
+      componentsDir,
+      domainName: "Orders",
+      moduleName: "UserManager",
+      subdomainName: "Sales",
+    }),
+    path.join(dir, "src/domains/Orders/Sales/modules/UserManager"),
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(dir, "src/domains/Orders/modules/index.ts"),
+      "utf8",
+    ),
+    /export \* as Checkout from '\.\/Checkout'/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(dir, "src/domains/Orders/Sales/modules/index.ts"),
+      "utf8",
+    ),
+    /export \* as UserManager from '\.\/UserManager'/,
+  );
+  assert.match(
+    fs.readFileSync(path.join(dir, "src/domains/Orders/index.ts"), "utf8"),
+    /export \* from '\.\/modules'/,
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(dir, "src/domains/Orders/Sales/index.ts"),
+      "utf8",
+    ),
+    /export \* from '\.\/modules'/,
+  );
+});
+
+test("createScopedModuleFiles creates module-level sidecars", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+
+  silenceConsole(() =>
+    createScopedModuleFiles({
+      componentsDir,
+      extension: "tsx",
+      moduleName: "UserManager",
+      name: "userService",
+      type: "service",
+    }),
+  );
+
+  const serviceDir = path.join(
+    dir,
+    "src/modules/UserManager/services/userService",
+  );
+  assert.equal(
+    fs.readFileSync(path.join(serviceDir, "userService.ts"), "utf8"),
+    "export const userService = () => {}\n\nexport default userService\n",
+  );
+  assert.match(
+    fs.readFileSync(
+      path.join(dir, "src/modules/UserManager/services/index.ts"),
+      "utf8",
+    ),
+    /export \{ default as userService \} from '\.\/userService'/,
+  );
+});
+
+test("createScopedModuleFiles creates sidecars in a subdomain module", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+
+  silenceConsole(() =>
+    createScopedModuleFiles({
+      componentsDir,
+      domainName: "Orders",
+      extension: "tsx",
+      moduleName: "UserManager",
+      name: "userService",
+      subdomainName: "Sales",
+      type: "service",
+    }),
+  );
+
+  assert.equal(
+    fs.existsSync(
+      path.join(
+        dir,
+        "src/domains/Orders/Sales/modules/UserManager/services/userService/userService.ts",
+      ),
+    ),
+    true,
+  );
+});
+
 test("createSubdomainFiles creates a nested subdomain structure", () => {
   const dir = makeTempDir();
   const componentsDir = path.join(dir, "src/components");
@@ -298,6 +546,7 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
 
   for (const subdir of [
     "components",
+    "modules",
     "hooks",
     "services",
     "state",
@@ -338,9 +587,7 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
     true,
   );
   assert.equal(
-    fs.existsSync(
-      path.join(subdomainDir, "components", "_types_", "index.ts"),
-    ),
+    fs.existsSync(path.join(subdomainDir, "components", "_types_", "index.ts")),
     true,
   );
   assert.match(
@@ -351,6 +598,7 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
     fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
     [
       "export * from './components'",
+      "export * from './modules'",
       "export * from './hooks'",
       "export * from './services'",
       "export * from './state'",

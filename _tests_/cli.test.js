@@ -15,6 +15,7 @@ const typeCases = [
   ["helper", ["--for", "orders/sales"], "format order", ["formatOrder"]],
   ["molecule", [], "button group", ["ButtonGroup"]],
   ["model", ["--for", "orders/sales"], "order summary", ["orderSummary"]],
+  ["module", [], "user manager", ["UserManager"]],
   ["organism", [], "main nav", ["MainNav"]],
   ["template", [], "dashboard shell", ["DashboardShell"]],
   ["page", [], "home page", ["HomePage"]],
@@ -228,7 +229,8 @@ test("parseArgs supports prompt with ai flag for generated components", () => {
     }),
     {
       ai: true,
-      prompt: "Use an input, submit button, loading state, and compact variant.",
+      prompt:
+        "Use an input, submit button, loading state, and compact variant.",
       platform: "react-ts",
       type: "molecule",
       names: ["SearchBar"],
@@ -391,6 +393,200 @@ test("parseArgs supports domain as a component type", () => {
       platform: "react-ts",
       type: "domain",
       names: ["Billing"],
+    },
+  );
+});
+
+test("parseArgs supports module creation", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "module",
+        "--name",
+        "user manager",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      platform: "react-ts",
+      type: "module",
+      names: ["UserManager"],
+    },
+  );
+});
+
+test("parseArgs supports module creation for a domain", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "module",
+        "--for",
+        "orders",
+        "--name",
+        "user manager",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      forDomain: "Orders",
+      platform: "react-ts",
+      type: "module",
+      names: ["UserManager"],
+    },
+  );
+});
+
+test("parseArgs supports module creation for a subdomain", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--type",
+        "module",
+        "--for",
+        "orders/sales",
+        "--name",
+        "user manager",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      forDomain: "Orders",
+      forSubdomain: "Sales",
+      platform: "react-ts",
+      type: "module",
+      names: ["UserManager"],
+    },
+  );
+});
+
+test("parseArgs supports module-scoped generation with --for", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--for",
+        "user manager",
+        "--type",
+        "atom",
+        "--name",
+        "button",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      moduleName: "UserManager",
+      platform: "react-ts",
+      type: "atom",
+      names: ["Button"],
+    },
+  );
+});
+
+test("parseArgs supports module-scoped generation with --module", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--module",
+        "user manager",
+        "--type",
+        "service",
+        "--name",
+        "user service",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      moduleName: "UserManager",
+      platform: "react-ts",
+      type: "service",
+      names: ["userService"],
+    },
+  );
+});
+
+test("parseArgs supports a domain-owned module target", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--module",
+        "user manager",
+        "--for",
+        "orders",
+        "--type",
+        "atom",
+        "--name",
+        "button",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      forDomain: "Orders",
+      moduleName: "UserManager",
+      platform: "react-ts",
+      type: "atom",
+      names: ["Button"],
+    },
+  );
+});
+
+test("parseArgs supports a subdomain-owned module target", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--module",
+        "user manager",
+        "--for",
+        "orders/sales",
+        "--type",
+        "service",
+        "--name",
+        "user service",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      forDomain: "Orders",
+      forSubdomain: "Sales",
+      moduleName: "UserManager",
+      platform: "react-ts",
+      type: "service",
+      names: ["userService"],
     },
   );
 });

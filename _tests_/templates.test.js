@@ -97,3 +97,64 @@ test("processTemplates writes rendered files and index exports", () => {
     /export \{ default as Button \} from '\.\/Button'/,
   );
 });
+
+test("processTemplates names Storybook stories for their component scope", () => {
+  const cases = [
+    { scope: [], title: "atoms/Button" },
+    {
+      scope: ["domains", "Orders"],
+      title: "domains/Orders/atoms/Button",
+    },
+    {
+      scope: ["domains", "Orders", "Sales"],
+      title: "domains/Orders/Sales/atoms/Button",
+    },
+    {
+      scope: ["modules", "UserManager"],
+      title: "modules/UserManager/atoms/Button",
+    },
+    {
+      scope: ["domains", "Orders", "modules", "Checkout"],
+      title: "domains/Orders/modules/Checkout/atoms/Button",
+    },
+    {
+      scope: ["domains", "Orders", "Sales", "modules", "UserManager"],
+      title: "domains/Orders/Sales/modules/UserManager/atoms/Button",
+    },
+  ];
+
+  for (const { scope, title } of cases) {
+    const dir = makeTempDir();
+    const templatePath = path.join(dir, "templates");
+    const platformDir = path.join(templatePath, "react");
+    const componentsDir = path.join(dir, "components");
+    const destination = path.join(componentsDir, "atoms/Button");
+
+    fs.mkdirSync(platformDir, { recursive: true });
+    fs.mkdirSync(destination, { recursive: true });
+    fs.mkdirSync(path.join(componentsDir, "atoms"), { recursive: true });
+    fs.writeFileSync(
+      path.join(platformDir, "[NAME].stories.js"),
+      'const meta = { title: "[TYPE]/[NAME]" }\n',
+    );
+
+    silenceConsole(() =>
+      processTemplates({
+        platform: "react",
+        type: "atom",
+        name: "Button",
+        storybookScope: scope,
+        destination,
+        componentsDir,
+        extension: "js",
+        scss: false,
+        templatePath,
+      }),
+    );
+
+    assert.equal(
+      fs.readFileSync(path.join(destination, "Button.stories.js"), "utf8"),
+      `const meta = { title: "${title}" }\n`,
+    );
+  }
+});
