@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   checkPlatformDependency,
+  cleanUnusedGeneratedArtifacts,
   createAtomicDirs,
   createDomainFiles,
   createLibFiles,
@@ -21,6 +22,7 @@ import {
   getScopedModuleDir,
   getSidecarDir,
   removeGeneratedItem,
+  scanUnusedGeneratedArtifacts,
 } from "../src/project.js";
 
 const makeTempDir = () =>
@@ -35,6 +37,23 @@ const silenceConsole = (fn) => {
   } finally {
     console.log = originalLog;
   }
+};
+
+const assertDocumentation = ({ dir, extension = "ts", name, title, type }) => {
+  assert.equal(
+    fs.readFileSync(path.join(dir, `${name}.mdx`), "utf8"),
+    [
+      "import { Meta, Source } from '@storybook/addon-docs/blocks'",
+      `import source from './${name}.${extension}?raw'`,
+      "",
+      `<Meta title="${title}" />`,
+      "",
+      `Add Documentation for ${type} / ${name} here.`,
+      "",
+      `<Source code={ source } language="${extension}" />`,
+      "",
+    ].join("\n"),
+  );
 };
 
 test("checkPlatformDependency accepts devDependencies", () => {
@@ -175,6 +194,12 @@ test("createLibFiles creates library files and root export", () => {
     fs.readFileSync(path.join(libDir, "index.ts"), "utf8"),
     /export \{ default as FormatDate \} from '\.\/FormatDate'/,
   );
+  assertDocumentation({
+    dir: path.join(libDir, "FormatDate"),
+    name: "FormatDate",
+    title: "lib/FormatDate",
+    type: "lib",
+  });
 });
 
 test("createSidecarFiles creates hook files and root hooks export", () => {
@@ -203,6 +228,12 @@ test("createSidecarFiles creates hook files and root hooks export", () => {
     fs.readFileSync(path.join(hooksDir, "index.ts"), "utf8"),
     /export \{ default as UseActive \} from '\.\/UseActive'/,
   );
+  assertDocumentation({
+    dir: path.join(hooksDir, "UseActive"),
+    name: "UseActive",
+    title: "hooks/UseActive",
+    type: "hook",
+  });
 });
 
 test("createSidecarFiles creates service files and root services export", () => {
@@ -234,6 +265,12 @@ test("createSidecarFiles creates service files and root services export", () => 
     fs.readFileSync(path.join(servicesDir, "index.ts"), "utf8"),
     /export \{ default as orderService \} from '\.\/orderService'/,
   );
+  assertDocumentation({
+    dir: path.join(servicesDir, "orderService"),
+    name: "orderService",
+    title: "services/orderService",
+    type: "service",
+  });
 });
 
 test("createDomainFiles creates a domain directory and root domains export", () => {
@@ -252,12 +289,18 @@ test("createDomainFiles creates a domain directory and root domains export", () 
   assert.equal(fs.existsSync(path.join(domainsDir, "Billing")), true);
   assert.equal(
     fs.existsSync(path.join(domainsDir, "Billing/Billing.ts")),
-    false,
+    true,
   );
   assert.equal(
     fs.readFileSync(path.join(domainsDir, "Billing/index.ts"), "utf8"),
-    "",
+    "export { default } from './Billing'",
   );
+  assertDocumentation({
+    dir: path.join(domainsDir, "Billing"),
+    name: "Billing",
+    title: "domains/Billing",
+    type: "domain",
+  });
   assert.match(
     fs.readFileSync(path.join(domainsDir, "index.ts"), "utf8"),
     /export \* as Billing from '\.\/Billing'/,
@@ -309,7 +352,7 @@ test("createSidecarFiles routes domain to a domain directory", () => {
   );
   assert.equal(
     fs.existsSync(path.join(dir, "src/domains/Billing/Billing.ts")),
-    false,
+    true,
   );
 });
 
@@ -374,6 +417,12 @@ test("createModuleFiles creates a module with atomic and sidecar directories", (
     fs.readFileSync(path.join(moduleDir, "index.ts"), "utf8"),
     /export \* from '\.\/components'/,
   );
+  assertDocumentation({
+    dir: moduleDir,
+    name: "UserManager",
+    title: "modules/UserManager",
+    type: "module",
+  });
 });
 
 test("top modules barrel exports each module with an alias without duplicates", () => {
@@ -494,6 +543,12 @@ test("createScopedModuleFiles creates module-level sidecars", () => {
     fs.readFileSync(path.join(serviceDir, "userService.ts"), "utf8"),
     "export const userService = () => {}\n\nexport default userService\n",
   );
+  assertDocumentation({
+    dir: serviceDir,
+    name: "userService",
+    title: "modules/UserManager/services/userService",
+    type: "service",
+  });
   assert.match(
     fs.readFileSync(
       path.join(dir, "src/modules/UserManager/services/index.ts"),
@@ -597,6 +652,7 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
   assert.equal(
     fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
     [
+      "export { default } from './Invoicing'",
       "export * from './components'",
       "export * from './modules'",
       "export * from './hooks'",
@@ -610,6 +666,12 @@ test("createSubdomainFiles creates a nested subdomain structure", () => {
       "",
     ].join("\n"),
   );
+  assertDocumentation({
+    dir: subdomainDir,
+    name: "Invoicing",
+    title: "domains/Billing/Invoicing",
+    type: "subdomain",
+  });
   assert.match(
     fs.readFileSync(path.join(dir, "src/domains/index.ts"), "utf8"),
     /export \* as Billing from '\.\/Billing'/,
@@ -702,6 +764,40 @@ test("createSubdomainFiles does not duplicate parent domain exports", () => {
   );
 });
 
+test("container generation preserves existing MDX documentation", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const documentationPath = path.join(
+    dir,
+    "src/domains/Billing/Invoicing/Invoicing.mdx",
+  );
+
+  silenceConsole(() =>
+    createSubdomainFiles({
+      componentsDir,
+      domainName: "Billing",
+      extension: "ts",
+      name: "Invoicing",
+    }),
+  );
+  fs.writeFileSync(documentationPath, "Custom documentation\n");
+
+  silenceConsole(() =>
+    createSubdomainFiles({
+      allowExisting: true,
+      componentsDir,
+      domainName: "Billing",
+      extension: "ts",
+      name: "Invoicing",
+    }),
+  );
+
+  assert.equal(
+    fs.readFileSync(documentationPath, "utf8"),
+    "Custom documentation\n",
+  );
+});
+
 test("createScopedSubdomainFiles creates files in the matching subdomain folder", () => {
   const dir = makeTempDir();
   const componentsDir = path.join(dir, "src/components");
@@ -730,7 +826,7 @@ test("createScopedSubdomainFiles creates files in the matching subdomain folder"
     });
   });
 
-  for (const [_type, folder, name] of cases) {
+  for (const [type, folder, name] of cases) {
     const folderDir = path.join(subdomainDir, folder);
 
     assert.equal(
@@ -749,6 +845,12 @@ test("createScopedSubdomainFiles creates files in the matching subdomain folder"
       fs.readFileSync(path.join(subdomainDir, "index.ts"), "utf8"),
       new RegExp(`export \\* from '\\./${folder}'`),
     );
+    assertDocumentation({
+      dir: path.join(folderDir, name),
+      name,
+      title: `domains/Orders/Sales/${folder}/${name}`,
+      type,
+    });
   }
 });
 
@@ -834,5 +936,69 @@ test("removeGeneratedItem removes matching generated directories and barrel refe
   assert.doesNotMatch(
     fs.readFileSync(path.join(hooksDir, "index.ts"), "utf8"),
     /dataTable/,
+  );
+});
+
+test("scanUnusedGeneratedArtifacts ignores barrels and keeps referenced items", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const atomsDir = path.join(componentsDir, "atoms");
+  const hooksDir = path.join(dir, "src/hooks");
+
+  fs.mkdirSync(path.join(atomsDir, "UsedButton"), { recursive: true });
+  fs.mkdirSync(path.join(atomsDir, "OldButton"), { recursive: true });
+  fs.mkdirSync(hooksDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(atomsDir, "index.tsx"),
+    [
+      "export { default as UsedButton } from './UsedButton'",
+      "export { default as OldButton } from './OldButton'",
+    ].join("\n"),
+  );
+  fs.writeFileSync(path.join(atomsDir, "UsedButton/index.tsx"), "");
+  fs.writeFileSync(path.join(atomsDir, "OldButton/index.tsx"), "");
+  fs.writeFileSync(path.join(hooksDir, "usedHook.ts"), "");
+  fs.writeFileSync(path.join(hooksDir, "oldHook.ts"), "");
+  fs.writeFileSync(
+    path.join(dir, "src/App.tsx"),
+    [
+      "import { UsedButton } from './components/atoms'",
+      "import { usedHook } from './hooks/usedHook'",
+      "export const App = () => <UsedButton />",
+      "void usedHook",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(scanUnusedGeneratedArtifacts({ componentsDir }), {
+    directories: [path.join(atomsDir, "OldButton")],
+    files: [path.join(hooksDir, "oldHook.ts")],
+  });
+});
+
+test("cleanUnusedGeneratedArtifacts removes planned paths and barrel references", () => {
+  const dir = makeTempDir();
+  const componentsDir = path.join(dir, "src/components");
+  const atomsDir = path.join(componentsDir, "atoms");
+  const oldButtonDir = path.join(atomsDir, "OldButton");
+
+  fs.mkdirSync(oldButtonDir, { recursive: true });
+  fs.writeFileSync(path.join(oldButtonDir, "index.tsx"), "");
+  fs.writeFileSync(
+    path.join(atomsDir, "index.tsx"),
+    "export { default as OldButton } from './OldButton'",
+  );
+
+  const removed = silenceConsole(() =>
+    cleanUnusedGeneratedArtifacts({
+      componentsDir,
+      directories: [oldButtonDir],
+    }),
+  );
+
+  assert.deepEqual(removed, [oldButtonDir]);
+  assert.equal(fs.existsSync(oldButtonDir), false);
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(atomsDir, "index.tsx"), "utf8"),
+    /OldButton/,
   );
 });
