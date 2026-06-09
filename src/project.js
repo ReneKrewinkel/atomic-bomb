@@ -93,6 +93,16 @@ const createDocumentedSource = ({
 }) => {
   const sourcePath = path.join(targetDir, `${name}.${extension}`);
   const documentationPath = path.join(targetDir, `${name}.mdx`);
+  const titlePath = path.join(...title.split("/"));
+  const targetSuffix = `${path.sep}${titlePath}`;
+  const sourceRoot = targetDir.endsWith(targetSuffix)
+    ? targetDir.slice(0, -targetSuffix.length)
+    : path.dirname(targetDir);
+  const displayPath = path.posix.join(
+    path.basename(sourceRoot),
+    ...title.split("/"),
+    `${name}.${extension}`,
+  );
 
   if (!fs.existsSync(sourcePath)) {
     fs.writeFileSync(
@@ -109,6 +119,10 @@ const createDocumentedSource = ({
         `import source from './${name}.${extension}?raw'`,
         "",
         `<Meta title="${title}" />`,
+        "",
+        `# ${type} ${name}`,
+        "",
+        `**File:** \`${displayPath}\``,
         "",
         `Add Documentation for ${type} / ${name} here.`,
         "",
