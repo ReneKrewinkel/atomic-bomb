@@ -97,6 +97,7 @@ atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|model|page|s
 atomic-bomb --export structure.json
 atomic-bomb --from structure.json
 atomic-bomb --remove [NAME]
+atomic-bomb --clean
 atomic-bomb --update
 atomic-bomb --type atom --name Button --ai [--prompt PROMPT] [--validate]
 ```
@@ -550,9 +551,9 @@ export * as UserManager from "./UserManager";
 Module component stories include the module in their Storybook title:
 
 ```ts
-title: "modules/UserManager/atoms/Button";
-title: "domains/Orders/modules/Checkout/pages/CheckoutPage";
-title: "domains/Orders/Sales/modules/UserManager/atoms/Button";
+title: "modules/UserManager/Components/atoms/Button";
+title: "domains/Orders/modules/Checkout/Components/pages/CheckoutPage";
+title: "domains/Orders/Sales/modules/UserManager/Components/atoms/Button";
 ```
 
 ## Subdomains
@@ -687,14 +688,48 @@ Scoped component stories include their domain and subdomain in the Storybook
 title:
 
 ```ts
-title: "domains/Orders/Sales/atoms/Logo";
+title: "domains/Orders/Sales/Components/atoms/Logo";
 ```
 
 The same convention applies to components rendered directly for a domain:
 
 ```ts
-title: "domains/Orders/atoms/Logo";
+title: "domains/Orders/Components/atoms/Logo";
 ```
+
+## Generated Documentation
+
+Generated libs, hooks, services, domains, subdomains, modules, and scoped DDD
+files include a `<name>.mdx` file beside their named source file. For example,
+`src/domains/Orders/Sales/api/fetchOrders/fetchOrders.mdx` contains:
+
+```mdx
+import { Meta, Source } from "@storybook/addon-docs/blocks";
+import source from "./fetchOrders.ts?raw";
+
+<Meta title="domains/Orders/Sales/api/fetchOrders" />
+
+Add Documentation for api / fetchOrders here.
+
+<Source code={source} language="ts" />
+```
+
+Existing MDX documentation is preserved when a domain, subdomain, or module is
+reused for additional generated files.
+
+Pass `--ai` to ask the configured provider to replace the placeholder with
+request-specific documentation based on the generated source:
+
+```shell
+atomic-bomb --type hook --name useOrders --ai
+atomic-bomb --for Orders/Sales --type api --name fetchOrders --ai
+atomic-bomb --module UserManager --type service --name userService --ai
+```
+
+For these documented artifacts, AI completion updates the named source and MDX
+files without expanding the Atomic Design component scaffold. The provider is
+instructed to preserve the MDX `Meta` and `Source` blocks while documenting the
+purpose, public API, inputs, outputs, usage, and important behavior.
 
 ## Remove Generated Items
 
@@ -717,6 +752,33 @@ export * as Orders from "./Orders";
 ```scss
 @use "./Logo";
 ```
+
+## Clean Unused Items
+
+Scan generator-owned component, domain, module, hook, lib, and service folders
+for unused paths:
+
+```shell
+atomic-bomb --clean
+```
+
+The command lists every proposed deletion and asks for confirmation:
+
+```text
+Unused generated paths:
+  src/components/atoms/OldButton
+  src/hooks/oldHook.ts
+Remove these unused paths? [y/N]:
+```
+
+A generated path is considered unused when its name is not referenced by
+another source file. Barrel files, stories, tests, and mocks do not count as
+usage. This is a conservative text scan rather than compiler-level dead-code
+analysis, so review the displayed paths before confirming.
+
+Only `y` or `yes` removes the listed paths. Pressing Enter, entering another
+answer, or running without an interactive terminal cancels the clean. Matching
+TypeScript and Sass barrel references are removed after confirmation.
 
 ## Export Structure
 
@@ -792,58 +854,6 @@ Subdomains use a domain-only `for` value:
   "name": "Sales"
 }
 ```
-
-## Testing Without npm Scripts
-
-Run the test suite directly:
-
-```shell
-node --test _tests_/*.test.js
-```
-
-Check syntax directly:
-
-```shell
-find src _tests_ -maxdepth 1 -name '*.js' -print | sort | xargs -n1 node --check
-```
-
-## Development
-
-Format files:
-
-```shell
-npm run nice
-```
-
-Run tests:
-
-```shell
-npm test
-```
-
-## Publishing
-
-Before publishing:
-
-```shell
-npm whoami
-npm test
-npm pack --dry-run
-```
-
-Publish:
-
-```shell
-npm publish
-```
-
-If publishing from GitHub Actions, make sure the publish workflow trigger matches the release flow. A job guarded by:
-
-```yaml
-if: github.event.pull_request.merged == true
-```
-
-will be skipped on normal `push` or tag events because `github.event.pull_request` is not present for those events.
 
 ## License
 

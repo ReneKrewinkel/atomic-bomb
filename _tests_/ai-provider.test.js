@@ -163,7 +163,10 @@ test("runOpenAiCompatibleGeneration creates extra scaffold and applies returned 
         createExtraScaffold: (item) => {
           const extraDir = path.join(dir, "src/components/atoms", item.name);
           fs.mkdirSync(extraDir, { recursive: true });
-          fs.writeFileSync(path.join(extraDir, `${item.name}.tsx`), "template\n");
+          fs.writeFileSync(
+            path.join(extraDir, `${item.name}.tsx`),
+            "template\n",
+          );
           return extraDir;
         },
         options: {
@@ -190,6 +193,87 @@ test("runOpenAiCompatibleGeneration creates extra scaffold and applies returned 
     assert.equal(
       fs.readFileSync(path.join(targetDir, "ServiceDesk.tsx"), "utf8"),
       "export const ServiceDesk = () => null\n",
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.chdir(cwd);
+  }
+});
+
+test("runOpenAiCompatibleGeneration completes MDX without scaffold expansion", async () => {
+  const dir = makeTempDir();
+  const cwd = process.cwd();
+  const originalFetch = globalThis.fetch;
+  const skillDir = path.join(dir, ".skills/atomic-bomb/1.2.3");
+  const targetDir = path.join(dir, "src/hooks/useOrders");
+  const documentationPath = path.join(targetDir, "useOrders.mdx");
+  let requestBody;
+
+  fs.mkdirSync(skillDir, { recursive: true });
+  fs.mkdirSync(targetDir, { recursive: true });
+  fs.writeFileSync(path.join(skillDir, "index.md"), "# Skill\n");
+  fs.writeFileSync(
+    path.join(targetDir, "useOrders.ts"),
+    "export default () => []\n",
+  );
+  fs.writeFileSync(
+    documentationPath,
+    '<Meta title="hooks/useOrders" />\n\nAdd Documentation here.\n',
+  );
+
+  globalThis.fetch = async (_url, options) => {
+    requestBody = JSON.parse(options.body);
+
+    return {
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                files: [
+                  {
+                    path: "src/hooks/useOrders/useOrders.mdx",
+                    content:
+                      '<Meta title="hooks/useOrders" />\n\nLoads the current orders.\n',
+                  },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+      ok: true,
+    };
+  };
+
+  try {
+    process.chdir(dir);
+    const result = await silenceConsole(() =>
+      runOpenAiCompatibleGeneration({
+        aiConfig: {
+          baseUrl: "https://api.example.com/v1",
+          model: "example-model",
+          provider: "openai-compatible",
+          skillPath: path.join(skillDir, "index.md"),
+        },
+        expandScaffold: false,
+        options: {
+          names: ["useOrders"],
+          type: "hook",
+        },
+        targetDirs: [targetDir],
+      }),
+    );
+
+    assert.deepEqual(result.extraItems, []);
+    assert.match(
+      requestBody.messages[1].content,
+      /Complete every generated MDX documentation file/,
+    );
+    assert.match(requestBody.messages[1].content, /useOrders\.mdx/);
+    assert.equal(
+      fs.readFileSync(documentationPath, "utf8"),
+      '<Meta title="hooks/useOrders" />\n\nLoads the current orders.\n',
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -269,7 +353,10 @@ test("runOpenAiCompatibleGeneration validates generated files when requested", a
         createExtraScaffold: (item) => {
           const extraDir = path.join(dir, "src/components/atoms", item.name);
           fs.mkdirSync(extraDir, { recursive: true });
-          fs.writeFileSync(path.join(extraDir, `${item.name}.tsx`), "template\n");
+          fs.writeFileSync(
+            path.join(extraDir, `${item.name}.tsx`),
+            "template\n",
+          );
           return extraDir;
         },
         options: {

@@ -8,12 +8,19 @@ const textExtensions = new Set([
   ".json",
   ".jsx",
   ".md",
+  ".mdx",
   ".scss",
   ".ts",
   ".tsx",
 ]);
 
-const atomicTypes = new Set(["atom", "molecule", "organism", "template", "page"]);
+const atomicTypes = new Set([
+  "atom",
+  "molecule",
+  "organism",
+  "template",
+  "page",
+]);
 const atomicTypeOrder = {
   atom: 0,
   molecule: 1,
@@ -55,6 +62,13 @@ const isPrimaryGeneratedFile = (filePath) => {
 
   if (!textExtensions.has(ext)) return false;
   if (fileName.startsWith("index.")) return true;
+  if (ext === ".mdx") return true;
+  if (
+    /\.(?:js|jsx|ts|tsx)$/.test(fileName) &&
+    !/\.(?:mock|stories|test)\.(?:js|jsx|ts|tsx)$/.test(fileName)
+  ) {
+    return true;
+  }
   if (/^[A-Z][A-Za-z0-9]*\.(?:js|jsx|ts|tsx)$/.test(fileName)) return true;
   if (/^[A-Z][A-Za-z0-9]*\.interface\.(?:js|jsx|ts|tsx)$/.test(fileName)) {
     return true;
@@ -258,6 +272,8 @@ export const createAiFilePlan = async ({
           "Return JSON shaped as:",
           '{"files":[{"path":"relative/path/from/project/root","content":"complete file content"}],"notes":["short note"]}',
           "Only write text files. Paths must be relative to the project root. Prefer replacing primary component, interface, style and index files.",
+          "Complete every generated MDX documentation file with useful request-specific documentation while preserving its Meta and Source blocks.",
+          "Document purpose, public API, expected inputs and outputs, usage guidance, and important behavior supported by the generated source.",
           "Do not return mock, story or test files unless they materially need custom content for this request.",
           "Do not write files inside .skills.",
           "",
@@ -327,10 +343,7 @@ export const validateScaffoldPlan = ({ items = [] }) =>
     .filter((item) => /^[A-Z][A-Za-z0-9]*$/.test(item.name));
 
 const hasFormIntent = ({ options }) =>
-  [
-    ...(options.names || []),
-    options.prompt || "",
-  ]
+  [...(options.names || []), options.prompt || ""]
     .join(" ")
     .toLowerCase()
     .match(
@@ -342,7 +355,11 @@ const standardAtomicStack = [
   { type: "atom", name: "InputField", reason: "Base form input primitive" },
   { type: "atom", name: "Button", reason: "Base action primitive" },
   { type: "atom", name: "Icon", reason: "Base visual state primitive" },
-  { type: "molecule", name: "ButtonGroup", reason: "Grouped primary and secondary actions" },
+  {
+    type: "molecule",
+    name: "ButtonGroup",
+    reason: "Grouped primary and secondary actions",
+  },
   { type: "organism", name: "Form", reason: "Feature form composition" },
 ];
 
@@ -366,7 +383,9 @@ const scaffoldKey = (item) => `${item.type}:${item.name}`;
 
 export const mergeScaffoldPlan = ({ options, scaffoldPlan = {} }) => {
   const requestedKeys = new Set(
-    (options.names || []).map((name) => scaffoldKey({ type: options.type, name })),
+    (options.names || []).map((name) =>
+      scaffoldKey({ type: options.type, name }),
+    ),
   );
   const items = [
     ...getRequiredScaffoldItems({ options }),
@@ -441,30 +460,37 @@ export const assertAiValidationPassed = (validationPlan = {}) => {
     [
       "AI validation failed:",
       ...issues.map((issue) => `- ${formatValidationIssue(issue)}`),
-      ...(issues.length === 0 ? ["- Provider returned passed=false without issues"] : []),
+      ...(issues.length === 0
+        ? ["- Provider returned passed=false without issues"]
+        : []),
     ].join("\n"),
   );
 };
 
 export const runOpenAiCompatibleGeneration = async ({
   aiConfig,
+  expandScaffold = true,
   createExtraScaffold,
   options,
   targetDirs,
   validate = false,
 }) => {
   const skillFiles = readSkillFiles(aiConfig.skillPath);
-  const scaffoldPlan = await createAiScaffoldPlan({
-    aiConfig,
-    options,
-    skillFiles,
-  });
-  const mergedScaffoldPlan = mergeScaffoldPlan({ options, scaffoldPlan });
+  const scaffoldPlan = expandScaffold
+    ? await createAiScaffoldPlan({
+        aiConfig,
+        options,
+        skillFiles,
+      })
+    : { items: [], notes: [] };
+  const mergedScaffoldPlan = expandScaffold
+    ? mergeScaffoldPlan({ options, scaffoldPlan })
+    : scaffoldPlan;
   const extraItems = mergedScaffoldPlan.items;
   const extraTargetDirs = [];
 
   for (const item of extraItems) {
-    const targetDir = createExtraScaffold(item);
+    const targetDir = createExtraScaffold?.(item);
     if (targetDir) extraTargetDirs.push(targetDir);
   }
 

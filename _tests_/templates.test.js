@@ -102,24 +102,31 @@ test("processTemplates names Storybook stories for their component scope", () =>
   const cases = [
     { scope: [], title: "atoms/Button" },
     {
-      scope: ["domains", "Orders"],
-      title: "domains/Orders/atoms/Button",
+      scope: ["domains", "Orders", "Components"],
+      title: "domains/Orders/Components/atoms/Button",
     },
     {
-      scope: ["domains", "Orders", "Sales"],
-      title: "domains/Orders/Sales/atoms/Button",
+      scope: ["domains", "Orders", "Sales", "Components"],
+      title: "domains/Orders/Sales/Components/atoms/Button",
     },
     {
-      scope: ["modules", "UserManager"],
-      title: "modules/UserManager/atoms/Button",
+      scope: ["modules", "UserManager", "Components"],
+      title: "modules/UserManager/Components/atoms/Button",
     },
     {
-      scope: ["domains", "Orders", "modules", "Checkout"],
-      title: "domains/Orders/modules/Checkout/atoms/Button",
+      scope: ["domains", "Orders", "modules", "Checkout", "Components"],
+      title: "domains/Orders/modules/Checkout/Components/atoms/Button",
     },
     {
-      scope: ["domains", "Orders", "Sales", "modules", "UserManager"],
-      title: "domains/Orders/Sales/modules/UserManager/atoms/Button",
+      scope: [
+        "domains",
+        "Orders",
+        "Sales",
+        "modules",
+        "UserManager",
+        "Components",
+      ],
+      title: "domains/Orders/Sales/modules/UserManager/Components/atoms/Button",
     },
   ];
 

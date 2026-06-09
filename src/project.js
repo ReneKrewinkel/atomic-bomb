@@ -84,6 +84,41 @@ const appendUniqueLine = ({ filePath, line }) => {
   fs.appendFileSync(filePath, `${content ? "\n" : ""}${line}`);
 };
 
+const createDocumentedSource = ({
+  extension,
+  name,
+  targetDir,
+  title,
+  type,
+}) => {
+  const sourcePath = path.join(targetDir, `${name}.${extension}`);
+  const documentationPath = path.join(targetDir, `${name}.mdx`);
+
+  if (!fs.existsSync(sourcePath)) {
+    fs.writeFileSync(
+      sourcePath,
+      `export const ${name} = () => {}\n\nexport default ${name}\n`,
+    );
+  }
+
+  if (!fs.existsSync(documentationPath)) {
+    fs.writeFileSync(
+      documentationPath,
+      [
+        "import { Meta, Source } from '@storybook/addon-docs/blocks'",
+        `import source from './${name}.${extension}?raw'`,
+        "",
+        `<Meta title="${title}" />`,
+        "",
+        `Add Documentation for ${type} / ${name} here.`,
+        "",
+        `<Source code={ source } language="${extension}" />`,
+        "",
+      ].join("\n"),
+    );
+  }
+};
+
 const getRemoveNameCandidates = (name) =>
   [name.trim(), convertToPascalCase(name), convertToCamelCase(name)].filter(
     Boolean,
@@ -123,6 +158,132 @@ const isBarrelFile = (filePath) => {
   const fileName = path.basename(filePath);
 
   return /^index\.(j|t)sx?$/.test(fileName) || fileName === "_index.scss";
+};
+
+const cleanBucketNames = new Set([
+  ...Object.values(atomicTypeDirectories),
+  ...Object.values(scopedFileDirectories),
+  "lib",
+  "modules",
+]);
+
+const isCleanReferenceFile = (filePath) =>
+  !isBarrelFile(filePath) &&
+  !/\.(mock|stories|test)\.[^.]+$/.test(path.basename(filePath));
+
+const containsNameReference = ({ content, name }) => {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+  return new RegExp(`(^|[^A-Za-z0-9_$])${escapedName}([^A-Za-z0-9_$]|$)`).test(
+    content,
+  );
+};
+
+const getCleanRoots = (componentsDir) =>
+  [
+    componentsDir,
+    getSidecarDir({ componentsDir, type: "domain" }),
+    getSidecarDir({ componentsDir, type: "hook" }),
+    getSidecarDir({ componentsDir, type: "lib" }),
+    getSidecarDir({ componentsDir, type: "module" }),
+    getSidecarDir({ componentsDir, type: "service" }),
+  ].filter((item, index, items) => items.indexOf(item) === index);
+
+const isGeneratedItemDirectory = (dir) => {
+  const parentName = path.basename(path.dirname(dir));
+
+  if (cleanBucketNames.has(parentName)) return true;
+
+  const childNames = fs
+    .readdirSync(dir, { withFileTypes: true })
+    .filter((item) => item.isDirectory())
+    .map((item) => item.name);
+
+  return childNames.includes("components") || childNames.includes("modules");
+};
+
+export const scanUnusedGeneratedArtifacts = ({ componentsDir }) => {
+  const sourceRoot = path.dirname(componentsDir);
+  const roots = getCleanRoots(componentsDir);
+  const allFiles = visibleFilesRecursive(sourceRoot);
+  const referenceFiles = allFiles.filter(isCleanReferenceFile);
+  const directories = roots
+    .flatMap((root) => visibleDirectoriesRecursive(root))
+    .filter(isGeneratedItemDirectory)
+    .filter((dir) => {
+      const name = path.basename(dir);
+
+      return !referenceFiles
+        .filter((filePath) => !filePath.startsWith(`${dir}${path.sep}`))
+        .some((filePath) =>
+          containsNameReference({
+            content: fs.readFileSync(filePath, "utf8"),
+            name,
+          }),
+        );
+    })
+    .filter(
+      (dir, _index, items) =>
+        !items.some(
+          (parent) => parent !== dir && dir.startsWith(`${parent}${path.sep}`),
+        ),
+    )
+    .sort();
+  const files = roots
+    .flatMap((root) => visibleFilesRecursive(root))
+    .filter((filePath) => {
+      const parentName = path.basename(path.dirname(filePath));
+      const fileName = path.basename(filePath);
+
+      return (
+        cleanBucketNames.has(parentName) &&
+        !isBarrelFile(filePath) &&
+        !/\.(mock|stories|test)\.[^.]+$/.test(fileName)
+      );
+    })
+    .filter(
+      (filePath) =>
+        !directories.some((dir) => filePath.startsWith(`${dir}${path.sep}`)),
+    )
+    .filter((filePath) => {
+      const name = path.basename(filePath).split(".")[0];
+
+      return !referenceFiles
+        .filter((referencePath) => referencePath !== filePath)
+        .some((referencePath) =>
+          containsNameReference({
+            content: fs.readFileSync(referencePath, "utf8"),
+            name,
+          }),
+        );
+    })
+    .sort();
+
+  return { directories, files };
+};
+
+export const cleanUnusedGeneratedArtifacts = ({
+  componentsDir,
+  directories = [],
+  files = [],
+}) => {
+  const targets = [...files, ...directories].sort(
+    (left, right) => right.split(path.sep).length - left.split(path.sep).length,
+  );
+
+  targets.forEach((target) => {
+    fs.rmSync(target, { recursive: true, force: true });
+    check(`🧹 ${target}`);
+  });
+
+  getCleanRoots(componentsDir).forEach((dir) =>
+    removeBarrelReferences({
+      dir,
+      names: targets.map((target) => path.basename(target).split(".")[0]),
+    }),
+  );
+
+  return targets;
 };
 
 const removesNameReference = ({ line, names }) =>
@@ -362,10 +523,13 @@ export const createSidecarFiles = ({
   fs.ensureDirSync(targetDir, 0o744);
   fs.ensureFileSync(path.join(sidecarDir, `index.${logicExtension}`));
 
-  fs.writeFileSync(
-    path.join(targetDir, `${name}.${logicExtension}`),
-    `export const ${name} = () => {}\n\nexport default ${name}\n`,
-  );
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir,
+    title: `${displayType}/${name}`,
+    type,
+  });
   fs.writeFileSync(
     path.join(targetDir, `index.${logicExtension}`),
     `export { default } from './${name}'\n`,
@@ -394,6 +558,17 @@ export const createDomainFiles = ({ componentsDir, extension, name }) => {
   fs.ensureDirSync(domainDir, 0o744);
   fs.ensureFileSync(domainsIndex);
   fs.ensureFileSync(path.join(domainDir, `index.${logicExtension}`));
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir: domainDir,
+    title: `domains/${name}`,
+    type: "domain",
+  });
+  appendUniqueLine({
+    filePath: path.join(domainDir, `index.${logicExtension}`),
+    line: `export { default } from './${name}'`,
+  });
   appendUniqueLine({
     filePath: domainsIndex,
     line: `export * as ${name} from './${name}'`,
@@ -436,9 +611,20 @@ export const createModuleFiles = ({
     fs.ensureDirSync(domainDir, 0o744);
     fs.ensureFileSync(path.join(domainsDir, `index.${logicExtension}`));
     fs.ensureFileSync(path.join(domainDir, `index.${logicExtension}`));
+    createDocumentedSource({
+      extension: logicExtension,
+      name: domainName,
+      targetDir: domainDir,
+      title: `domains/${domainName}`,
+      type: "domain",
+    });
     appendUniqueLine({
       filePath: path.join(domainsDir, `index.${logicExtension}`),
       line: `export * as ${domainName} from './${domainName}'`,
+    });
+    appendUniqueLine({
+      filePath: path.join(domainDir, `index.${logicExtension}`),
+      line: `export { default } from './${domainName}'`,
     });
     appendUniqueLine({
       filePath: path.join(domainDir, `index.${logicExtension}`),
@@ -461,6 +647,19 @@ export const createModuleFiles = ({
 
   fs.ensureDirSync(moduleDir, 0o744);
   fs.ensureFileSync(modulesIndex);
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir: moduleDir,
+    title: [
+      ...(domainName
+        ? ["domains", domainName, ...(subdomainName ? [subdomainName] : [])]
+        : []),
+      "modules",
+      name,
+    ].join("/"),
+    type: "module",
+  });
   appendUniqueLine({
     filePath: modulesIndex,
     line: `export * as ${name} from './${name}'`,
@@ -483,9 +682,11 @@ export const createModuleFiles = ({
 
   fs.writeFileSync(
     path.join(moduleDir, `index.${logicExtension}`),
-    `${moduleDirectories
-      .map((subdir) => `export * from './${subdir}'`)
-      .join("\n")}\n`,
+    [
+      `export { default } from './${name}'`,
+      ...moduleDirectories.map((subdir) => `export * from './${subdir}'`),
+      "",
+    ].join("\n"),
   );
 
   check(`📦 modules/${name}`);
@@ -516,6 +717,24 @@ export const createSubdomainFiles = ({
   fs.ensureDirSync(subdomainDir, 0o744);
   fs.ensureFileSync(domainsIndex);
   fs.ensureFileSync(domainIndex);
+  createDocumentedSource({
+    extension: logicExtension,
+    name: domainName,
+    targetDir: domainDir,
+    title: `domains/${domainName}`,
+    type: "domain",
+  });
+  appendUniqueLine({
+    filePath: domainIndex,
+    line: `export { default } from './${domainName}'`,
+  });
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir: subdomainDir,
+    title: `domains/${domainName}/${name}`,
+    type: "subdomain",
+  });
   appendUniqueLine({
     filePath: domainsIndex,
     line: `export * as ${domainName} from './${domainName}'`,
@@ -539,9 +758,11 @@ export const createSubdomainFiles = ({
 
   fs.writeFileSync(
     path.join(subdomainDir, `index.${logicExtension}`),
-    `${subdomainDirectories
-      .map((subdir) => `export * from './${subdir}'`)
-      .join("\n")}\n`,
+    [
+      `export { default } from './${name}'`,
+      ...subdomainDirectories.map((subdir) => `export * from './${subdir}'`),
+      "",
+    ].join("\n"),
   );
 
   check(`🗄️ domains/${domainName}/${name}`);
@@ -586,10 +807,13 @@ export const createScopedSubdomainFiles = ({
 
   fs.ensureDirSync(targetDir, 0o744);
   fs.ensureFileSync(folderIndex);
-  fs.writeFileSync(
-    path.join(targetDir, `${name}.${logicExtension}`),
-    `export const ${name} = () => {}\n\nexport default ${name}\n`,
-  );
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir,
+    title: `domains/${domainName}/${subdomainName}/${folder}/${name}`,
+    type,
+  });
   fs.writeFileSync(
     path.join(targetDir, `index.${logicExtension}`),
     `export { default } from './${name}'\n`,
@@ -653,10 +877,21 @@ export const createScopedModuleFiles = ({
 
   fs.ensureDirSync(targetDir, 0o744);
   fs.ensureFileSync(folderIndex);
-  fs.writeFileSync(
-    path.join(targetDir, `${name}.${logicExtension}`),
-    `export const ${name} = () => {}\n\nexport default ${name}\n`,
-  );
+  createDocumentedSource({
+    extension: logicExtension,
+    name,
+    targetDir,
+    title: [
+      ...(domainName
+        ? ["domains", domainName, ...(subdomainName ? [subdomainName] : [])]
+        : []),
+      "modules",
+      moduleName,
+      folder,
+      name,
+    ].join("/"),
+    type,
+  });
   fs.writeFileSync(
     path.join(targetDir, `index.${logicExtension}`),
     `export { default } from './${name}'\n`,

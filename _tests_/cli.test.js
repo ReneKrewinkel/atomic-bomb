@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { getAiUnavailableMessage, parseArgs } from "../src/cli.js";
+import {
+  getAiUnavailableMessage,
+  parseArgs,
+  promptCleanConfirmation,
+} from "../src/cli.js";
 import { validComponentTypes } from "../src/project.js";
 
 const parserOptions = {
@@ -326,6 +330,36 @@ test("getAiUnavailableMessage rejects scoped AI generation", () => {
       options: { forSubdomain: "Sales", type: "organism" },
     }),
     "AI generation for scoped subdomain components is not implemented yet. Remove --ai to scaffold normally.",
+  );
+});
+
+test("getAiUnavailableMessage allows AI documentation for scoped files", () => {
+  const aiConfig = {
+    enabled: true,
+    provider: "openai-compatible",
+    skillPath: ".skills/atomic-bomb/7.0.0/index.md",
+  };
+
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig,
+      options: {
+        forDomain: "Orders",
+        forSubdomain: "Sales",
+        type: "service",
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    getAiUnavailableMessage({
+      aiConfig,
+      options: {
+        moduleName: "UserManager",
+        type: "hook",
+      },
+    }),
+    false,
   );
 });
 
@@ -782,6 +816,45 @@ test("parseArgs supports remove action", () => {
       platform: "react-ts",
       removeName: "data table",
     },
+  );
+});
+
+test("parseArgs supports clean action", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: ["node", "atomic-bomb", "--clean"],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      clean: true,
+      platform: "react-ts",
+    },
+  );
+});
+
+test("promptCleanConfirmation requires explicit confirmation", async () => {
+  assert.equal(
+    await promptCleanConfirmation({
+      isInteractive: true,
+      question: async () => "yes",
+    }),
+    true,
+  );
+  assert.equal(
+    await promptCleanConfirmation({
+      isInteractive: true,
+      question: async () => "",
+    }),
+    false,
+  );
+  assert.equal(
+    await promptCleanConfirmation({
+      isInteractive: false,
+    }),
+    false,
   );
 });
 
