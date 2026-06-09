@@ -709,6 +709,10 @@ import source from "./fetchOrders.ts?raw";
 
 <Meta title="domains/Orders/Sales/api/fetchOrders" />
 
+# api fetchOrders
+
+**File:** `src/domains/Orders/Sales/api/fetchOrders/fetchOrders.ts`
+
 Add Documentation for api / fetchOrders here.
 
 <Source code={source} language="ts" />
@@ -728,8 +732,9 @@ atomic-bomb --module UserManager --type service --name userService --ai
 
 For these documented artifacts, AI completion updates the named source and MDX
 files without expanding the Atomic Design component scaffold. The provider is
-instructed to preserve the MDX `Meta` and `Source` blocks while documenting the
-purpose, public API, inputs, outputs, usage, and important behavior.
+instructed to preserve the MDX `Meta`, title, file path, and `Source` blocks
+while documenting the purpose, public API, inputs, outputs, usage, and
+important behavior.
 
 ## Remove Generated Items
 

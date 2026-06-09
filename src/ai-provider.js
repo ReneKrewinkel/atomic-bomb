@@ -272,7 +272,7 @@ export const createAiFilePlan = async ({
           "Return JSON shaped as:",
           '{"files":[{"path":"relative/path/from/project/root","content":"complete file content"}],"notes":["short note"]}',
           "Only write text files. Paths must be relative to the project root. Prefer replacing primary component, interface, style and index files.",
-          "Complete every generated MDX documentation file with useful request-specific documentation while preserving its Meta and Source blocks.",
+          "Complete every generated MDX documentation file with useful request-specific documentation while preserving its Meta, title, File path and Source blocks.",
           "Document purpose, public API, expected inputs and outputs, usage guidance, and important behavior supported by the generated source.",
           "Do not return mock, story or test files unless they materially need custom content for this request.",
           "Do not write files inside .skills.",
