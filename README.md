@@ -92,7 +92,7 @@ atomic-bomb --module [MODULE] --type hook|lib|service --name [NAME]
 atomic-bomb --module [MODULE] --for [DOMAIN] --type atom|molecule|organism|template|page|hook|lib|service --name [NAME]
 atomic-bomb --module [MODULE] --for [DOMAIN]/[SUBDOMAIN] --type atom|molecule|organism|template|page|hook|lib|service --name [NAME]
 atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type atom|molecule|organism|template --name [NAME]
-atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|model|page|service|state --name [NAME]
+atomic-bomb --for [DOMAIN]/[SUBDOMAIN] --type api|event|helper|hook|lib|model|page|service|state --name [NAME]
 
 atomic-bomb --export structure.json
 atomic-bomb --from structure.json
@@ -597,6 +597,8 @@ src/domains/Orders
     │   └── index.ts
     ├── hooks
     │   └── index.ts
+    ├── lib
+    │   └── index.ts
     ├── models
     │   └── index.ts
     ├── modules
@@ -615,6 +617,7 @@ The subdomain `index.ts` exports every DDD folder:
 ```ts
 export * from "./components";
 export * from "./hooks";
+export * from "./lib";
 export * from "./services";
 export * from "./state";
 export * from "./models";
@@ -655,6 +658,7 @@ Scoped domain file types go into their matching folders:
 
 ```shell
 atomic-bomb --for Orders/Sales --type hook --name useOrders
+atomic-bomb --for Orders/Sales --type lib --name formatOrder
 atomic-bomb --for Orders/Sales --type service --name orderService
 atomic-bomb --for Orders/Sales --type event --name orderCreated
 atomic-bomb --for Orders/Sales --type helper --name formatOrder

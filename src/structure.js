@@ -25,6 +25,7 @@ const scopedTypeDirs = {
   event: "events",
   helper: "helpers",
   hook: "hooks",
+  lib: "lib",
   model: "models",
   page: "pages",
   service: "services",

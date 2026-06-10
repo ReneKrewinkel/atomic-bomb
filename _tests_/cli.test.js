@@ -708,6 +708,34 @@ test("parseArgs supports scoped service generation inside a subdomain", () => {
   );
 });
 
+test("parseArgs supports scoped lib generation inside a subdomain", () => {
+  assert.deepEqual(
+    parseArgs({
+      args: [
+        "node",
+        "atomic-bomb",
+        "--for",
+        "orders/sales",
+        "--type",
+        "lib",
+        "--name",
+        "orderMapper",
+      ],
+      dotConfig: {
+        platform: "react-ts",
+      },
+      ...parserOptions,
+    }),
+    {
+      forDomain: "Orders",
+      forSubdomain: "Sales",
+      platform: "react-ts",
+      type: "lib",
+      names: ["orderMapper"],
+    },
+  );
+});
+
 test("parseArgs supports root service generation", () => {
   assert.deepEqual(
     parseArgs({
