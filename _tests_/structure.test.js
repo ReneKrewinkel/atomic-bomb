@@ -47,6 +47,7 @@ test("generationStructureSchema validates every registered component type", () =
     "event",
     "helper",
     "hook",
+    "lib",
     "model",
     "service",
     "state",
@@ -191,6 +192,12 @@ test("collectGenerationStructure exports directories without file contents", () 
     },
   );
   fs.mkdirSync(
+    path.join(dir, "src/domains/Billing/Invoicing/lib/formatInvoice"),
+    {
+      recursive: true,
+    },
+  );
+  fs.mkdirSync(
     path.join(dir, "src/domains/Billing/Invoicing/services/orderService"),
     {
       recursive: true,
@@ -198,6 +205,10 @@ test("collectGenerationStructure exports directories without file contents", () 
   );
   fs.writeFileSync(
     path.join(dir, "src/domains/Billing/Invoicing/hooks/useOrders/index.ts"),
+    "",
+  );
+  fs.writeFileSync(
+    path.join(dir, "src/domains/Billing/Invoicing/lib/formatInvoice/index.ts"),
     "",
   );
   fs.writeFileSync(
@@ -245,6 +256,11 @@ test("collectGenerationStructure exports directories without file contents", () 
           type: "atom",
         },
         { for: "Billing/Invoicing", name: "useOrders", type: "hook" },
+        {
+          for: "Billing/Invoicing",
+          name: "formatInvoice",
+          type: "lib",
+        },
         {
           for: "Billing/Invoicing",
           name: "orderService",

@@ -1,0 +1,7 @@
+{
+  "search": "react",
+  "extension": "js",
+  "platform": "react",
+  "destination": "src/components",
+  "scss": true
+}
