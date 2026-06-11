@@ -412,10 +412,11 @@ src/hooks
 
 The generated file contains:
 
+<!-- prettier-ignore -->
 ```ts
-export const useData = () => {};
+export const useData = () => {}
 
-export default useData;
+export default useData
 ```
 
 ## Lib
@@ -438,10 +439,11 @@ src/lib
 
 The generated file contains:
 
+<!-- prettier-ignore -->
 ```ts
-export const formatDate = () => {};
+export const formatDate = () => {}
 
-export default formatDate;
+export default formatDate
 ```
 
 ## Domains
@@ -464,9 +466,10 @@ src/domains
 The top-level `src/domains/index.ts` barrel exports every domain using its
 domain name as an alias:
 
+<!-- prettier-ignore -->
 ```ts
-export * as Orders from "./Orders";
-export * as Billing from "./Billing";
+export * as Orders from "./Orders"
+export * as Billing from "./Billing"
 ```
 
 ## Modules
@@ -496,9 +499,10 @@ src/modules/UserManager
 The top-level `src/modules/index.ts` barrel exports every module using its
 module name as an alias:
 
+<!-- prettier-ignore -->
 ```ts
-export * as UserManager from "./UserManager";
-export * as OrderManager from "./OrderManager";
+export * as UserManager from "./UserManager"
+export * as OrderManager from "./OrderManager"
 ```
 
 Use either `--for [MODULE]` or `--module [MODULE]` to generate inside it:
@@ -512,7 +516,14 @@ atomic-bomb --type lib --name userMapper --for UserManager
 atomic-bomb --type service --name userService --module UserManager
 ```
 
-Atomic types are generated under `src/modules/UserManager/components`.
+Atomic types are generated under `src/modules/UserManager/components`. The
+`components` directory is always lowercase, including its module barrel export:
+
+<!-- prettier-ignore -->
+```ts
+export * from "./components"
+```
+
 Modules support only atomic components, hooks, libs, and services. Hooks, libs,
 and services are generated in their matching module-level folders. Referencing
 a module that does not exist creates its structure automatically.
@@ -543,17 +554,39 @@ atomic-bomb --module UserManager --for Orders/Sales --type service --name userSe
 
 Each nested `modules/index.ts` barrel exports modules using aliases:
 
+<!-- prettier-ignore -->
 ```ts
-export * as Checkout from "./Checkout";
-export * as UserManager from "./UserManager";
+export * as Checkout from "./Checkout"
+export * as UserManager from "./UserManager"
 ```
 
 Module component stories include the module in their Storybook title:
 
+<!-- prettier-ignore -->
 ```ts
-title: "modules/UserManager/Components/atoms/Button";
-title: "domains/Orders/modules/Checkout/Components/pages/CheckoutPage";
-title: "domains/Orders/Sales/modules/UserManager/Components/atoms/Button";
+title: "modules/UserManager/Components/atoms/Button"
+title: "domains/Orders/modules/Checkout/Components/pages/CheckoutPage"
+title: "domains/Orders/Sales/modules/UserManager/Components/atoms/Button"
+```
+
+Top-level domain and module namespace barrels can be imported and composed
+directly:
+
+<!-- prettier-ignore -->
+```tsx
+import { DomainName } from "@/domains"
+import { ModuleName } from "@/modules"
+
+const App = () => {
+  return (
+    <div>
+      <ModuleName.PageName />
+      <DomainName.SubdomainName.PageName />
+    </div>
+  )
+}
+
+export default App
 ```
 
 ## Subdomains
@@ -614,17 +647,18 @@ src/domains/Orders
 
 The subdomain `index.ts` exports every DDD folder:
 
+<!-- prettier-ignore -->
 ```ts
-export * from "./components";
-export * from "./hooks";
-export * from "./lib";
-export * from "./services";
-export * from "./state";
-export * from "./models";
-export * from "./events";
-export * from "./helpers";
-export * from "./api";
-export * from "./pages";
+export * from "./components"
+export * from "./hooks"
+export * from "./lib"
+export * from "./services"
+export * from "./state"
+export * from "./models"
+export * from "./events"
+export * from "./helpers"
+export * from "./api"
+export * from "./pages"
 ```
 
 ## Scoped Generation
@@ -682,8 +716,9 @@ src/domains/Orders/Sales/services/orderService
 
 Each folder index is updated:
 
+<!-- prettier-ignore -->
 ```ts
-export { default as orderService } from "./orderService";
+export { default as orderService } from "./orderService"
 ```
 
 Scoped generation repairs missing subdomain index files when the subdomain already exists.
@@ -691,14 +726,16 @@ Scoped generation repairs missing subdomain index files when the subdomain alrea
 Scoped component stories include their domain and subdomain in the Storybook
 title:
 
+<!-- prettier-ignore -->
 ```ts
-title: "domains/Orders/Sales/Components/atoms/Logo";
+title: "domains/Orders/Sales/Components/atoms/Logo"
 ```
 
 The same convention applies to components rendered directly for a domain:
 
+<!-- prettier-ignore -->
 ```ts
-title: "domains/Orders/Components/atoms/Logo";
+title: "domains/Orders/Components/atoms/Logo"
 ```
 
 ## Generated Documentation
@@ -707,9 +744,10 @@ Generated libs, hooks, services, domains, subdomains, modules, and scoped DDD
 files include a `<name>.mdx` file beside their named source file. For example,
 `src/domains/Orders/Sales/api/fetchOrders/fetchOrders.mdx` contains:
 
+<!-- prettier-ignore -->
 ```mdx
-import { Meta, Source } from "@storybook/addon-docs/blocks";
-import source from "./fetchOrders.ts?raw";
+import { Meta, Source } from "@storybook/addon-docs/blocks"
+import source from "./fetchOrders.ts?raw"
 
 <Meta title="domains/Orders/Sales/api/fetchOrders" />
 
@@ -753,11 +791,13 @@ The remove command scans generated `components`, `domains`, `modules`,
 `hooks`, and `lib` folders recursively. It removes every matching item
 directory and cleans matching TypeScript and Sass barrel lines such as:
 
+<!-- prettier-ignore -->
 ```ts
-export { default as Logo } from "./Logo";
-export * as Orders from "./Orders";
+export { default as Logo } from "./Logo"
+export * as Orders from "./Orders"
 ```
 
+<!-- prettier-ignore -->
 ```scss
 @use "./Logo";
 ```

@@ -382,6 +382,8 @@ test("createModuleFiles creates a module with atomic and sidecar directories", (
     getModuleComponentsDir({ componentsDir, moduleName: "UserManager" }),
     path.join(moduleDir, "components"),
   );
+  assert.equal(fs.readdirSync(moduleDir).includes("components"), true);
+  assert.equal(fs.readdirSync(moduleDir).includes("Components"), false);
 
   for (const atomicDir of [
     "atoms",
@@ -417,9 +419,27 @@ test("createModuleFiles creates a module with atomic and sidecar directories", (
     fs.readFileSync(path.join(dir, "src/modules/index.ts"), "utf8"),
     /export \* as UserManager from '\.\/UserManager'/,
   );
-  assert.match(
+  assert.equal(
     fs.readFileSync(path.join(moduleDir, "index.ts"), "utf8"),
-    /export \* from '\.\/components'/,
+    [
+      "export { default } from './UserManager'",
+      "export * from './components'",
+      "export * from './hooks'",
+      "export * from './services'",
+      "export * from './lib'",
+      "",
+    ].join("\n"),
+  );
+  assert.equal(
+    fs.readFileSync(path.join(moduleDir, "components/index.ts"), "utf8"),
+    [
+      "export * from './_types_'",
+      "export * from './atoms'",
+      "export * from './molecules'",
+      "export * from './organisms'",
+      "export * from './pages'",
+      "export * from './templates'",
+    ].join("\n"),
   );
   assertDocumentation({
     dir: moduleDir,
