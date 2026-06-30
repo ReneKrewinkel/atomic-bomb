@@ -1,28 +1,23 @@
-import chalk from "chalk";
-import figlet from "figlet";
-import fs from "fs-extra";
-import path from "node:path";
-import readline from "node:readline/promises";
-import yargs from "yargs";
-import { hideBin } from "yargs/helpers";
-import { promptAiConfig } from "./ai-config.js";
-import { runOpenAiCompatibleGeneration } from "./ai-provider.js";
-import { convertNameForType, convertToPascalCase } from "./case.js";
-import {
-  createDotFile,
-  readAppConfig,
-  readDotFile,
-  writeDotFile,
-} from "./config.js";
-import { error, showCopyright } from "./logger.js";
+import chalk from 'chalk'
+import figlet from 'figlet'
+import fs from 'fs-extra'
+import path from 'node:path'
+import readline from 'node:readline/promises'
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
+import { promptAiConfig } from './ai-config.js'
+import { runOpenAiCompatibleGeneration } from './ai-provider.js'
+import { convertNameForType, convertToPascalCase } from './case.js'
+import { createDotFile, readAppConfig, readDotFile, writeDotFile } from './config.js'
+import { error, showCopyright } from './logger.js'
 import {
   appPackagePath,
   projectDotFilePath,
   projectPackagePath,
   skillSourcePath,
   templatePath,
-  workflowTemplatePath,
-} from "./paths.js";
+  workflowTemplatePath
+} from './paths.js'
 import {
   checkAndCreateDir,
   checkPackageJson,
@@ -44,277 +39,231 @@ import {
   isAtomicType,
   removeGeneratedItem,
   scanUnusedGeneratedArtifacts,
-  validComponentTypes,
-} from "./project.js";
-import {
-  checkPlatform,
-  processTemplates,
-  pullPlatforms,
-  pullTemplateRepository,
-} from "./templates.js";
-import {
-  readGenerationStructure,
-  writeGenerationStructure,
-} from "./structure.js";
-import { installSkillBundle } from "./skills.js";
+  validComponentTypes
+} from './project.js'
+import { checkPlatform, processTemplates, pullPlatforms, pullTemplateRepository } from './templates.js'
+import { readGenerationStructure, writeGenerationStructure } from './structure.js'
+import { getInstalledSkillIndex, installSkillBundleForAi } from './skills.js'
 
 const usage = ({ appName, platforms }) => {
-  const message = `USAGE: ${appName} \n\t--platform ${platforms.join("|")} \n\t--type ${validComponentTypes.join("|")} \n\t--name [NAME](,[NAME],[NAME])\n\t--type module --name [NAME](,[NAME],[NAME]) [--for DOMAIN[/SUBDOMAIN]]\n\t--module [MODULENAME] [--for DOMAIN[/SUBDOMAIN]] --type [TYPE] --name [NAME]\n\t--for [MODULENAME] --type [TYPE] --name [NAME]\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--ai [--prompt PROMPT] [--validate]\n\t--remove [NAME]\n\t--clean\n\t--update\n\t--export [FILENAME]\n\t--from [FILENAME]\n`;
-  console.log(chalk.greenBright(`🤙 ${message}\n\nhttps://atomic-bomb.io`));
-  process.exit(2);
-};
+  const message = `USAGE: ${appName} \n\t--platform ${platforms.join('|')} \n\t--type ${validComponentTypes.join('|')} \n\t--name [NAME](,[NAME],[NAME])\n\t--type module --name [NAME](,[NAME],[NAME]) [--for DOMAIN[/SUBDOMAIN]]\n\t--module [MODULENAME] [--for DOMAIN[/SUBDOMAIN]] --type [TYPE] --name [NAME]\n\t--for [MODULENAME] --type [TYPE] --name [NAME]\n\t--type subdomain --for [DOMAINNAME] --name [NAME](,[NAME],[NAME])\n\t--for [DOMAINNAME]/[SUBDOMAIN] --type [TYPE] --name [NAME]\n\t--ai [--prompt PROMPT] [--validate]\n\t--remove [NAME]\n\t--clean\n\t--update\n\t--export [FILENAME]\n\t--from [FILENAME]\n`
+  console.log(chalk.greenBright(`🤙 ${message}\n\nhttps://atomic-bomb.io`))
+  process.exit(2)
+}
 
 const parseParentTarget = (value) => {
   const parts = value
-    .split("/")
+    .split('/')
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter(Boolean)
 
   if (parts.length === 1) {
     return {
-      forDomain: convertToPascalCase(parts[0]),
-    };
+      forDomain: convertToPascalCase(parts[0])
+    }
   }
 
   if (parts.length === 2) {
     return {
       forDomain: convertToPascalCase(parts[0]),
-      forSubdomain: convertToPascalCase(parts[1]),
-    };
+      forSubdomain: convertToPascalCase(parts[1])
+    }
   }
 
-  return false;
-};
+  return false
+}
 
 const parseForTarget = (value) => {
   const parts = value
-    .split("/")
+    .split('/')
     .map((item) => item.trim())
-    .filter(Boolean);
+    .filter(Boolean)
 
   if (parts.length === 1) {
     return {
-      moduleName: convertToPascalCase(parts[0]),
-    };
+      moduleName: convertToPascalCase(parts[0])
+    }
   }
 
-  if (parts.length !== 2) return false;
+  if (parts.length !== 2) return false
 
   return {
     forDomain: convertToPascalCase(parts[0]),
-    forSubdomain: convertToPascalCase(parts[1]),
-  };
-};
+    forSubdomain: convertToPascalCase(parts[1])
+  }
+}
 
-const scopedOnlyTypes = ["api", "event", "helper", "model", "state"];
+const scopedOnlyTypes = ['api', 'event', 'helper', 'model', 'state']
 const scopedTypeDirectories = {
-  api: "api",
-  event: "events",
-  helper: "helpers",
-  hook: "hooks",
-  lib: "lib",
-  model: "models",
-  page: "pages",
-  service: "services",
-  state: "state",
-};
+  api: 'api',
+  event: 'events',
+  helper: 'helpers',
+  hook: 'hooks',
+  lib: 'lib',
+  model: 'models',
+  page: 'pages',
+  service: 'services',
+  state: 'state'
+}
 const moduleTypeDirectories = {
-  hook: "hooks",
-  lib: "lib",
-  service: "services",
-};
-const moduleComponentTypes = [
-  "atom",
-  "molecule",
-  "organism",
-  "page",
-  "template",
-];
-const moduleScopedTypes = [...moduleComponentTypes, "hook", "lib", "service"];
-const aiComponentTypes = ["atom", "molecule", "organism", "page", "template"];
+  hook: 'hooks',
+  lib: 'lib',
+  service: 'services'
+}
+const moduleComponentTypes = ['atom', 'molecule', 'organism', 'page', 'template']
+const moduleScopedTypes = [...moduleComponentTypes, 'hook', 'lib', 'service']
+const aiComponentTypes = ['atom', 'molecule', 'organism', 'page', 'template']
 const aiDocumentedTypes = [
-  "api",
-  "domain",
-  "event",
-  "helper",
-  "hook",
-  "lib",
-  "model",
-  "module",
-  "page",
-  "service",
-  "state",
-  "subdomain",
-];
-const aiSupportedTypes = [
-  ...new Set([...aiComponentTypes, ...aiDocumentedTypes]),
-];
-const implementedAiProviders = ["openai", "openai-compatible"];
+  'api',
+  'domain',
+  'event',
+  'helper',
+  'hook',
+  'lib',
+  'model',
+  'module',
+  'page',
+  'service',
+  'state',
+  'subdomain'
+]
+const aiSupportedTypes = [...new Set([...aiComponentTypes, ...aiDocumentedTypes])]
+const implementedAiProviders = ['openai', 'openai-compatible']
 
 export const getAiUnavailableMessage = ({ aiConfig = false, options = {} }) => {
   if (!aiConfig?.enabled) {
-    return "AI generation requested, but no AI provider is configured. Run atomic-bomb -p and configure an AI provider first.";
+    return 'AI generation requested, but no AI provider is configured. Run atomic-bomb -p and configure an AI provider first.'
   }
 
   if (!aiSupportedTypes.includes(options.type)) {
-    return `AI generation currently supports ${aiSupportedTypes.join(", ")}. Remove --ai to scaffold ${options.type} normally.`;
+    return `AI generation currently supports ${aiSupportedTypes.join(', ')}. Remove --ai to scaffold ${options.type} normally.`
   }
 
   if (options.forSubdomain && !aiDocumentedTypes.includes(options.type)) {
-    return "AI generation for scoped subdomain components is not implemented yet. Remove --ai to scaffold normally.";
+    return 'AI generation for scoped subdomain components is not implemented yet. Remove --ai to scaffold normally.'
   }
 
   if (options.moduleName && moduleComponentTypes.includes(options.type)) {
-    return "AI generation for module components is not implemented yet. Remove --ai to scaffold normally.";
+    return 'AI generation for module components is not implemented yet. Remove --ai to scaffold normally.'
   }
 
   if (!implementedAiProviders.includes(aiConfig.provider)) {
-    return `AI generation requested with provider "${aiConfig.provider}", but no provider adapter is implemented yet. Remove --ai to scaffold normally, or add an adapter for this provider.`;
+    return `AI generation requested with provider "${aiConfig.provider}", but no provider adapter is implemented yet. Remove --ai to scaffold normally, or add an adapter for this provider.`
   }
 
-  return false;
-};
+  return false
+}
 
 export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
   const argv = yargs(hideBin(args))
-    .option("platform", {
-      alias: "p",
-      type: "string",
+    .option('platform', {
+      alias: 'p',
+      type: 'string'
     })
-    .option("for", {
-      type: "string",
+    .option('for', {
+      type: 'string'
     })
-    .option("module", {
-      type: "string",
+    .option('module', {
+      type: 'string'
     })
-    .option("export", {
-      type: "string",
+    .option('export', {
+      type: 'string'
     })
-    .option("from", {
-      type: "string",
+    .option('from', {
+      type: 'string'
     })
-    .option("remove", {
-      type: "string",
+    .option('remove', {
+      type: 'string'
     })
-    .option("clean", {
-      type: "boolean",
+    .option('clean', {
+      type: 'boolean'
     })
-    .option("update", {
-      type: "boolean",
+    .option('update', {
+      type: 'boolean'
     })
-    .option("ai", {
-      type: "boolean",
+    .option('ai', {
+      type: 'boolean'
     })
-    .option("prompt", {
-      type: "string",
+    .option('prompt', {
+      type: 'string'
     })
-    .option("validate", {
-      type: "boolean",
-    }).argv;
+    .option('validate', {
+      type: 'boolean'
+    }).argv
 
   try {
-    const actionCount = [
-      argv.export,
-      argv.from,
-      argv.remove,
-      argv.clean,
-      argv.update,
-    ].filter(Boolean).length;
+    const actionCount = [argv.export, argv.from, argv.remove, argv.clean, argv.update].filter(Boolean).length
 
-    if (
-      actionCount > 1 ||
-      ((argv.remove || argv.clean || argv.update) && argv.name)
-    ) {
-      usage({ appName, platforms });
+    if (actionCount > 1 || ((argv.remove || argv.clean || argv.update) && argv.name)) {
+      usage({ appName, platforms })
     }
 
     if ((argv.prompt || argv.validate) && !argv.ai) {
-      usage({ appName, platforms });
+      usage({ appName, platforms })
     }
 
-    if (
-      !argv.name &&
-      !argv.platform &&
-      !argv.export &&
-      !argv.from &&
-      !argv.remove &&
-      !argv.clean &&
-      !argv.update
-    ) {
-      usage({ appName, platforms });
+    if (!argv.name && !argv.platform && !argv.export && !argv.from && !argv.remove && !argv.clean && !argv.update) {
+      usage({ appName, platforms })
     }
 
-    const platform = argv.platform
-      ? argv.platform.toLowerCase()
-      : dotConfig
-        ? dotConfig.platform
-        : "react";
+    const platform = argv.platform ? argv.platform.toLowerCase() : dotConfig ? dotConfig.platform : 'react'
 
-    if (!platforms.includes(platform)) usage({ appName, platforms });
+    if (!platforms.includes(platform)) usage({ appName, platforms })
 
     if (argv.export) {
-      return { exportFile: argv.export, platform };
+      return { exportFile: argv.export, platform }
     }
 
     if (argv.from) {
-      return { fromFile: argv.from, platform };
+      return { fromFile: argv.from, platform }
     }
 
     if (argv.remove) {
-      return { removeName: argv.remove, platform };
+      return { removeName: argv.remove, platform }
     }
 
     if (argv.clean) {
-      return { clean: true, platform };
+      return { clean: true, platform }
     }
 
     if (argv.update) {
-      return { platform, updateSkills: true };
+      return { platform, updateSkills: true }
     }
 
     if (!argv.name) {
-      return { platform, type: null, names: [], platformOnly: true };
+      return { platform, type: null, names: [], platformOnly: true }
     }
 
-    const type = argv.type ? argv.type.toLowerCase() : "atom";
+    const type = argv.type ? argv.type.toLowerCase() : 'atom'
     const forTarget = argv.for
-      ? type === "module" || argv.module
+      ? type === 'module' || argv.module
         ? parseParentTarget(argv.for)
         : parseForTarget(argv.for)
-      : false;
-    if (!validComponentTypes.includes(type)) usage({ appName, platforms });
-    if (type === "subdomain" && !argv.for) usage({ appName, platforms });
-    if (type === "module" && argv.module) usage({ appName, platforms });
-    if (scopedOnlyTypes.includes(type) && !argv.for && !argv.module)
-      usage({ appName, platforms });
-    if (
-      argv.for &&
-      type === "subdomain" &&
-      parseForTarget(argv.for)?.moduleName === undefined
-    ) {
-      usage({ appName, platforms });
+      : false
+    if (!validComponentTypes.includes(type)) usage({ appName, platforms })
+    if (type === 'subdomain' && !argv.for) usage({ appName, platforms })
+    if (type === 'module' && argv.module) usage({ appName, platforms })
+    if (scopedOnlyTypes.includes(type) && !argv.for && !argv.module) usage({ appName, platforms })
+    if (argv.for && type === 'subdomain' && parseForTarget(argv.for)?.moduleName === undefined) {
+      usage({ appName, platforms })
     }
-    if (argv.for && type !== "subdomain" && !forTarget) {
-      usage({ appName, platforms });
+    if (argv.for && type !== 'subdomain' && !forTarget) {
+      usage({ appName, platforms })
     }
     if (
-      type !== "subdomain" &&
-      type !== "module" &&
+      type !== 'subdomain' &&
+      type !== 'module' &&
       (argv.module || forTarget?.moduleName) &&
       !moduleScopedTypes.includes(type)
     ) {
-      usage({ appName, platforms });
+      usage({ appName, platforms })
     }
 
-    const names = argv.name
-      .split(",")
-      .map((item) => convertNameForType({ type, value: item }));
+    const names = argv.name.split(',').map((item) => convertNameForType({ type, value: item }))
 
     return {
-      ...(argv.for && type === "subdomain"
-        ? { forDomain: convertToPascalCase(argv.for) }
-        : {}),
-      ...(argv.for && type !== "subdomain" ? forTarget : {}),
+      ...(argv.for && type === 'subdomain' ? { forDomain: convertToPascalCase(argv.for) } : {}),
+      ...(argv.for && type !== 'subdomain' ? forTarget : {}),
       ...(argv.module ? { moduleName: convertToPascalCase(argv.module) } : {}),
       platform,
       type,
@@ -323,27 +272,26 @@ export const parseArgs = ({ args, appName, platforms, dotConfig = false }) => {
         ? {
             ai: true,
             ...(argv.prompt ? { prompt: argv.prompt } : {}),
-            ...(argv.validate ? { validate: true } : {}),
+            ...(argv.validate ? { validate: true } : {})
           }
-        : {}),
-    };
+        : {})
+    }
   } catch (err) {
-    usage({ appName, platforms });
+    usage({ appName, platforms })
   }
-};
+}
 
 const renderBanner = (banner) =>
   new Promise((resolve) => {
     figlet(banner, (err, data) => {
-      if (err) error(err.message);
+      if (err) error(err.message)
 
-      console.log(chalk.green(`${data}`));
-      resolve();
-    });
-  });
+      console.log(chalk.green(`${data}`))
+      resolve()
+    })
+  })
 
-const getComponentTargetDir = ({ componentsDir, name, type }) =>
-  `${componentsDir}/${type}s/${name}`;
+const getComponentTargetDir = ({ componentsDir, name, type }) => `${componentsDir}/${type}s/${name}`
 
 const scaffoldComponent = ({
   componentsDir,
@@ -353,9 +301,9 @@ const scaffoldComponent = ({
   scss,
   storybookScope = [],
   type,
-  targetDir = getComponentTargetDir({ componentsDir, name, type }),
+  targetDir = getComponentTargetDir({ componentsDir, name, type })
 }) => {
-  createComponentDir({ name: `${type}/${name}`, dir: targetDir });
+  createComponentDir({ name: `${type}/${name}`, dir: targetDir })
   processTemplates({
     platform,
     type,
@@ -365,11 +313,11 @@ const scaffoldComponent = ({
     extension,
     scss,
     storybookScope,
-    templatePath,
-  });
+    templatePath
+  })
 
-  return targetDir;
-};
+  return targetDir
+}
 
 const generateComponents = async ({
   ai = false,
@@ -379,26 +327,26 @@ const generateComponents = async ({
   platform,
   prompt,
   type,
-  validate,
+  validate
 }) => {
-  await renderBanner(appConfig.banner);
+  await renderBanner(appConfig.banner)
 
-  checkPlatform({ platform, templatePath });
-  createDotFile({ dotFilePath: projectDotFilePath, platform, templatePath });
-  createWorkflow({ workflowTemplatePath });
+  checkPlatform({ platform, templatePath })
+  createDotFile({ dotFilePath: projectDotFilePath, platform, templatePath })
+  createWorkflow({ workflowTemplatePath })
 
-  const projectConfig = readDotFile(projectDotFilePath);
-  checkPackageJson(projectPackagePath);
+  const projectConfig = readDotFile(projectDotFilePath)
+  checkPackageJson(projectPackagePath)
   checkPlatformDependency({
     packagePath: projectPackagePath,
-    packageName: projectConfig.search,
-  });
-  checkAndCreateDir(projectConfig.destination);
+    packageName: projectConfig.search
+  })
+  checkAndCreateDir(projectConfig.destination)
   createAtomicDirs({
     dir: projectConfig.destination,
     extension: projectConfig.extension,
-    scss: projectConfig.scss,
-  });
+    scss: projectConfig.scss
+  })
 
   const targetDirs = names.map((name) =>
     scaffoldComponent({
@@ -407,9 +355,9 @@ const generateComponents = async ({
       name,
       platform,
       scss: projectConfig.scss,
-      type,
-    }),
-  );
+      type
+    })
+  )
 
   if (ai) {
     await runOpenAiCompatibleGeneration({
@@ -418,10 +366,10 @@ const generateComponents = async ({
         const targetDir = getComponentTargetDir({
           componentsDir: projectConfig.destination,
           name: item.name,
-          type: item.type,
-        });
+          type: item.type
+        })
 
-        if (fs.existsSync(targetDir)) return targetDir;
+        if (fs.existsSync(targetDir)) return targetDir
 
         return scaffoldComponent({
           componentsDir: projectConfig.destination,
@@ -430,17 +378,17 @@ const generateComponents = async ({
           platform,
           scss: projectConfig.scss,
           targetDir,
-          type: item.type,
-        });
+          type: item.type
+        })
       },
       options: { names, prompt, type },
       targetDirs,
-      validate,
-    });
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const generateImportedItem = ({ item, platform, projectConfig }) => {
   if (item.moduleName) {
@@ -450,9 +398,9 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
       moduleName: item.moduleName,
       platform,
       projectConfig,
-      subdomainName: item.forSubdomain,
-    });
-    return;
+      subdomainName: item.forSubdomain
+    })
+    return
   }
 
   if (item.forModule) {
@@ -460,22 +408,22 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
       item,
       moduleName: item.forModule,
       platform,
-      projectConfig,
-    });
-    return;
+      projectConfig
+    })
+    return
   }
 
-  if (item.for && item.type !== "subdomain") {
-    if (item.type === "module") {
+  if (item.for && item.type !== 'subdomain') {
+    if (item.type === 'module') {
       createModuleFiles({
         componentsDir: projectConfig.destination,
         domainName: item.forDomain,
         extension: projectConfig.extension,
         name: item.name,
         scss: projectConfig.scss,
-        subdomainName: item.forSubdomain,
-      });
-      return;
+        subdomainName: item.forSubdomain
+      })
+      return
     }
 
     generateScopedItem({
@@ -483,17 +431,15 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
       item,
       platform,
       projectConfig,
-      subdomainName: item.forSubdomain,
-    });
-    return;
+      subdomainName: item.forSubdomain
+    })
+    return
   }
 
-  if (
-    ["atom", "molecule", "organism", "page", "template"].includes(item.type)
-  ) {
-    const targetDir = `${projectConfig.destination}/${item.type}s/${item.name}`;
+  if (['atom', 'molecule', 'organism', 'page', 'template'].includes(item.type)) {
+    const targetDir = `${projectConfig.destination}/${item.type}s/${item.name}`
 
-    createComponentDir({ name: `${item.type}/${item.name}`, dir: targetDir });
+    createComponentDir({ name: `${item.type}/${item.name}`, dir: targetDir })
     processTemplates({
       platform,
       type: item.type,
@@ -502,29 +448,29 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
       scss: projectConfig.scss,
-      templatePath,
-    });
-    return;
+      templatePath
+    })
+    return
   }
 
-  if (["domain", "hook", "lib", "service"].includes(item.type)) {
+  if (['domain', 'hook', 'lib', 'service'].includes(item.type)) {
     createSidecarFiles({
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
       name: item.name,
-      type: item.type,
-    });
-    return;
+      type: item.type
+    })
+    return
   }
 
-  if (item.type === "module") {
+  if (item.type === 'module') {
     createModuleFiles({
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
       name: item.name,
-      scss: projectConfig.scss,
-    });
-    return;
+      scss: projectConfig.scss
+    })
+    return
   }
 
   createSubdomainFiles({
@@ -532,18 +478,11 @@ const generateImportedItem = ({ item, platform, projectConfig }) => {
     componentsDir: projectConfig.destination,
     domainName: item.for,
     extension: projectConfig.extension,
-    name: item.name,
-  });
-};
+    name: item.name
+  })
+}
 
-const generateModuleItem = ({
-  domainName,
-  item,
-  moduleName,
-  platform,
-  projectConfig,
-  subdomainName,
-}) => {
+const generateModuleItem = ({ domainName, item, moduleName, platform, projectConfig, subdomainName }) => {
   createModuleFiles({
     allowExisting: true,
     componentsDir: projectConfig.destination,
@@ -551,16 +490,16 @@ const generateModuleItem = ({
     extension: projectConfig.extension,
     name: moduleName,
     scss: projectConfig.scss,
-    subdomainName,
-  });
+    subdomainName
+  })
 
   if (moduleComponentTypes.includes(item.type)) {
     const moduleComponentsDir = getModuleComponentsDir({
       componentsDir: projectConfig.destination,
       domainName,
       moduleName,
-      subdomainName,
-    });
+      subdomainName
+    })
 
     scaffoldComponent({
       componentsDir: moduleComponentsDir,
@@ -569,16 +508,14 @@ const generateModuleItem = ({
       platform,
       scss: projectConfig.scss,
       storybookScope: [
-        ...(domainName
-          ? ["domains", domainName, ...(subdomainName ? [subdomainName] : [])]
-          : []),
-        "modules",
+        ...(domainName ? ['domains', domainName, ...(subdomainName ? [subdomainName] : [])] : []),
+        'modules',
         moduleName,
-        "Components",
+        'Components'
       ],
-      type: item.type,
-    });
-    return;
+      type: item.type
+    })
+    return
   }
 
   createScopedModuleFiles({
@@ -589,24 +526,18 @@ const generateModuleItem = ({
     name: item.name,
     scss: projectConfig.scss,
     subdomainName,
-    type: item.type,
-  });
-};
+    type: item.type
+  })
+}
 
-const generateScopedItem = ({
-  domainName,
-  item,
-  platform,
-  projectConfig,
-  subdomainName,
-}) => {
+const generateScopedItem = ({ domainName, item, platform, projectConfig, subdomainName }) => {
   if (isAtomicType(item.type)) {
     const scopedComponentsDir = getScopedComponentsDir({
       componentsDir: projectConfig.destination,
       domainName,
-      subdomainName,
-    });
-    const targetDir = `${scopedComponentsDir}/${item.type}s/${item.name}`;
+      subdomainName
+    })
+    const targetDir = `${scopedComponentsDir}/${item.type}s/${item.name}`
 
     createSubdomainFiles({
       allowExisting: true,
@@ -614,17 +545,17 @@ const generateScopedItem = ({
       domainName,
       extension: projectConfig.extension,
       name: subdomainName,
-      scss: projectConfig.scss,
-    });
+      scss: projectConfig.scss
+    })
     createAtomicDirs({
       dir: scopedComponentsDir,
       extension: projectConfig.extension,
-      scss: projectConfig.scss,
-    });
+      scss: projectConfig.scss
+    })
     createComponentDir({
       name: `${domainName}/${subdomainName}/${item.type}/${item.name}`,
-      dir: targetDir,
-    });
+      dir: targetDir
+    })
     processTemplates({
       platform,
       type: item.type,
@@ -633,15 +564,10 @@ const generateScopedItem = ({
       componentsDir: scopedComponentsDir,
       extension: projectConfig.extension,
       scss: projectConfig.scss,
-      storybookScope: [
-        "domains",
-        domainName,
-        ...(subdomainName ? [subdomainName] : []),
-        "Components",
-      ],
-      templatePath,
-    });
-    return;
+      storybookScope: ['domains', domainName, ...(subdomainName ? [subdomainName] : []), 'Components'],
+      templatePath
+    })
+    return
   }
 
   createScopedSubdomainFiles({
@@ -651,32 +577,32 @@ const generateScopedItem = ({
     name: item.name,
     scss: projectConfig.scss,
     subdomainName,
-    type: item.type,
-  });
-};
+    type: item.type
+  })
+}
 
 const prepareProject = ({ platform, withAtomicDirs = false }) => {
-  checkPlatform({ platform, templatePath });
-  createDotFile({ dotFilePath: projectDotFilePath, platform, templatePath });
+  checkPlatform({ platform, templatePath })
+  createDotFile({ dotFilePath: projectDotFilePath, platform, templatePath })
 
-  const projectConfig = readDotFile(projectDotFilePath);
-  checkPackageJson(projectPackagePath);
+  const projectConfig = readDotFile(projectDotFilePath)
+  checkPackageJson(projectPackagePath)
   checkPlatformDependency({
     packagePath: projectPackagePath,
-    packageName: projectConfig.search,
-  });
+    packageName: projectConfig.search
+  })
 
   if (withAtomicDirs) {
-    checkAndCreateDir(projectConfig.destination);
+    checkAndCreateDir(projectConfig.destination)
     createAtomicDirs({
       dir: projectConfig.destination,
       extension: projectConfig.extension,
-      scss: projectConfig.scss,
-    });
+      scss: projectConfig.scss
+    })
   }
 
-  return projectConfig;
-};
+  return projectConfig
+}
 
 const completeAiDocumentation = async ({
   aiConfig,
@@ -687,7 +613,7 @@ const completeAiDocumentation = async ({
   prompt,
   targetDirs,
   type,
-  validate,
+  validate
 }) =>
   runOpenAiCompatibleGeneration({
     aiConfig,
@@ -698,33 +624,24 @@ const completeAiDocumentation = async ({
       moduleName,
       names,
       prompt,
-      type,
+      type
     },
     targetDirs,
-    validate,
-  });
+    validate
+  })
 
-const generateSidecar = async ({
-  ai,
-  aiConfig,
-  appConfig,
-  names,
-  platform,
-  prompt,
-  type,
-  validate,
-}) => {
-  await renderBanner(appConfig.banner);
-  const projectConfig = prepareProject({ platform });
+const generateSidecar = async ({ ai, aiConfig, appConfig, names, platform, prompt, type, validate }) => {
+  await renderBanner(appConfig.banner)
+  const projectConfig = prepareProject({ platform })
 
   names.forEach((name) => {
     createSidecarFiles({
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
       name,
-      type,
-    });
-  });
+      type
+    })
+  })
 
   if (ai) {
     await completeAiDocumentation({
@@ -735,31 +652,22 @@ const generateSidecar = async ({
         path.join(
           getSidecarDir({
             componentsDir: projectConfig.destination,
-            type,
+            type
           }),
-          name,
-        ),
+          name
+        )
       ),
       type,
-      validate,
-    });
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
-const generateSubdomain = async ({
-  ai,
-  aiConfig,
-  appConfig,
-  forDomain,
-  names,
-  platform,
-  prompt,
-  validate,
-}) => {
-  await renderBanner(appConfig.banner);
-  const projectConfig = prepareProject({ platform });
+const generateSubdomain = async ({ ai, aiConfig, appConfig, forDomain, names, platform, prompt, validate }) => {
+  await renderBanner(appConfig.banner)
+  const projectConfig = prepareProject({ platform })
 
   names.forEach((name) => {
     createSubdomainFiles({
@@ -767,9 +675,9 @@ const generateSubdomain = async ({
       domainName: forDomain,
       extension: projectConfig.extension,
       name,
-      scss: projectConfig.scss,
-    });
-  });
+      scss: projectConfig.scss
+    })
+  })
 
   if (ai) {
     await completeAiDocumentation({
@@ -781,16 +689,16 @@ const generateSubdomain = async ({
         getSubdomainDir({
           componentsDir: projectConfig.destination,
           domainName: forDomain,
-          subdomainName: name,
-        }),
+          subdomainName: name
+        })
       ),
-      type: "subdomain",
-      validate,
-    });
+      type: 'subdomain',
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const generateScoped = async ({
   ai,
@@ -802,10 +710,10 @@ const generateScoped = async ({
   platform,
   prompt,
   type,
-  validate,
+  validate
 }) => {
-  await renderBanner(appConfig.banner);
-  const projectConfig = prepareProject({ platform });
+  await renderBanner(appConfig.banner)
+  const projectConfig = prepareProject({ platform })
 
   names.forEach((name) => {
     generateScopedItem({
@@ -813,12 +721,12 @@ const generateScoped = async ({
       item: { name, type },
       platform,
       projectConfig,
-      subdomainName: forSubdomain,
-    });
-  });
+      subdomainName: forSubdomain
+    })
+  })
 
   if (ai) {
-    const folder = scopedTypeDirectories[type];
+    const folder = scopedTypeDirectories[type]
     await completeAiDocumentation({
       aiConfig,
       forDomain,
@@ -830,19 +738,19 @@ const generateScoped = async ({
           getSubdomainDir({
             componentsDir: projectConfig.destination,
             domainName: forDomain,
-            subdomainName: forSubdomain,
+            subdomainName: forSubdomain
           }),
           folder,
-          name,
-        ),
+          name
+        )
       ),
       type,
-      validate,
-    });
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const generateModule = async ({
   ai,
@@ -853,10 +761,10 @@ const generateModule = async ({
   names,
   platform,
   prompt,
-  validate,
+  validate
 }) => {
-  await renderBanner(appConfig.banner);
-  const projectConfig = prepareProject({ platform });
+  await renderBanner(appConfig.banner)
+  const projectConfig = prepareProject({ platform })
 
   names.forEach((name) => {
     createModuleFiles({
@@ -865,9 +773,9 @@ const generateModule = async ({
       extension: projectConfig.extension,
       name,
       scss: projectConfig.scss,
-      subdomainName: forSubdomain,
-    });
-  });
+      subdomainName: forSubdomain
+    })
+  })
 
   if (ai) {
     await completeAiDocumentation({
@@ -881,16 +789,16 @@ const generateModule = async ({
           componentsDir: projectConfig.destination,
           domainName: forDomain,
           moduleName: name,
-          subdomainName: forSubdomain,
-        }),
+          subdomainName: forSubdomain
+        })
       ),
-      type: "module",
-      validate,
-    });
+      type: 'module',
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const generateForModule = async ({
   ai,
@@ -903,10 +811,10 @@ const generateForModule = async ({
   platform,
   prompt,
   type,
-  validate,
+  validate
 }) => {
-  await renderBanner(appConfig.banner);
-  const projectConfig = prepareProject({ platform });
+  await renderBanner(appConfig.banner)
+  const projectConfig = prepareProject({ platform })
 
   names.forEach((name) => {
     generateModuleItem({
@@ -915,18 +823,18 @@ const generateForModule = async ({
       moduleName,
       platform,
       projectConfig,
-      subdomainName: forSubdomain,
-    });
-  });
+      subdomainName: forSubdomain
+    })
+  })
 
   if (ai) {
-    const folder = moduleTypeDirectories[type];
+    const folder = moduleTypeDirectories[type]
     const moduleDir = getScopedModuleDir({
       componentsDir: projectConfig.destination,
       domainName: forDomain,
       moduleName,
-      subdomainName: forSubdomain,
-    });
+      subdomainName: forSubdomain
+    })
     await completeAiDocumentation({
       aiConfig,
       forDomain,
@@ -936,294 +844,294 @@ const generateForModule = async ({
       prompt,
       targetDirs: names.map((name) => path.join(moduleDir, folder, name)),
       type,
-      validate,
-    });
+      validate
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const configurePlatform = async ({ appConfig, existingConfig, platform }) => {
-  await renderBanner(appConfig.banner);
+  await renderBanner(appConfig.banner)
 
-  checkPlatform({ platform, templatePath });
-  const skillPath = installSkillBundle({
+  checkPlatform({ platform, templatePath })
+  const requestedAiConfig = await promptAiConfig({
+    defaultSkillPath: getInstalledSkillIndex({
+      appVersion: appConfig.version
+    }),
+    existingAiConfig: existingConfig?.ai || false
+  })
+  const aiConfig = installSkillBundleForAi({
+    aiConfig: requestedAiConfig,
     appVersion: appConfig.version,
-    skillSourcePath,
-  });
-
-  const aiConfig = await promptAiConfig({
-    defaultSkillPath: skillPath,
-    existingAiConfig: existingConfig?.ai || false,
-  });
+    skillSourcePath
+  })
 
   writeDotFile({
     aiConfig,
     dotFilePath: projectDotFilePath,
     platform,
-    templatePath,
-  });
-  showCopyright(appConfig);
-};
+    templatePath
+  })
+  showCopyright(appConfig)
+}
 
 const updateSkills = async ({ appConfig, existingConfig, platform }) => {
-  await renderBanner(appConfig.banner);
+  await renderBanner(appConfig.banner)
 
-  checkPlatform({ platform, templatePath });
-  const skillPath = installSkillBundle({
+  checkPlatform({ platform, templatePath })
+  const aiConfig = installSkillBundleForAi({
+    aiConfig: existingConfig?.ai,
     appVersion: appConfig.version,
-    skillSourcePath,
-  });
+    skillSourcePath
+  })
 
-  if (existingConfig?.ai) {
+  if (aiConfig) {
     writeDotFile({
-      aiConfig: {
-        ...existingConfig.ai,
-        skillPath,
-      },
+      aiConfig,
       dotFilePath: projectDotFilePath,
       platform,
-      templatePath,
-    });
+      templatePath
+    })
   }
 
-  showCopyright(appConfig);
-};
+  showCopyright(appConfig)
+}
 
 const exportStructure = ({ appConfig, filePath, platform }) => {
   figlet(appConfig.banner, (err, data) => {
-    if (err) error(err.message);
+    if (err) error(err.message)
 
-    console.log(chalk.green(`${data}`));
+    console.log(chalk.green(`${data}`))
 
-    const projectConfig = prepareProject({ platform });
+    const projectConfig = prepareProject({ platform })
     writeGenerationStructure({
       componentsDir: projectConfig.destination,
       extension: projectConfig.extension,
       filePath,
-      platform: projectConfig.platform,
-    });
+      platform: projectConfig.platform
+    })
 
-    showCopyright(appConfig);
-  });
-};
+    showCopyright(appConfig)
+  })
+}
 
 const generateFromStructure = ({ appConfig, filePath, platform }) => {
   figlet(appConfig.banner, (err, data) => {
-    if (err) error(err.message);
+    if (err) error(err.message)
 
-    console.log(chalk.green(`${data}`));
+    console.log(chalk.green(`${data}`))
 
-    const structure = readGenerationStructure(filePath);
-    const projectConfig = prepareProject({ platform, withAtomicDirs: true });
+    const structure = readGenerationStructure(filePath)
+    const projectConfig = prepareProject({ platform, withAtomicDirs: true })
 
     structure.items.forEach((item) => {
-      generateImportedItem({ item, platform, projectConfig });
-    });
+      generateImportedItem({ item, platform, projectConfig })
+    })
 
-    showCopyright(appConfig);
-  });
-};
+    showCopyright(appConfig)
+  })
+}
 
 const removeItem = ({ appConfig, name, platform }) => {
   figlet(appConfig.banner, (err, data) => {
-    if (err) error(err.message);
+    if (err) error(err.message)
 
-    console.log(chalk.green(`${data}`));
+    console.log(chalk.green(`${data}`))
 
-    const projectConfig = prepareProject({ platform });
+    const projectConfig = prepareProject({ platform })
 
     removeGeneratedItem({
       componentsDir: projectConfig.destination,
-      name,
-    });
+      name
+    })
 
-    showCopyright(appConfig);
-  });
-};
+    showCopyright(appConfig)
+  })
+}
 
 export const promptCleanConfirmation = async ({
   input = process.stdin,
   output = process.stdout,
   isInteractive = input.isTTY && output.isTTY,
-  question = false,
+  question = false
 } = {}) => {
-  if (!isInteractive) return false;
+  if (!isInteractive) return false
 
-  const rl = question ? false : readline.createInterface({ input, output });
-  const prompt = question || ((message) => rl.question(message));
+  const rl = question ? false : readline.createInterface({ input, output })
+  const prompt = question || ((message) => rl.question(message))
 
   try {
-    const answer = await prompt("Remove these unused paths? [y/N]: ");
+    const answer = await prompt('Remove these unused paths? [y/N]: ')
 
-    return ["y", "yes"].includes(answer.trim().toLowerCase());
+    return ['y', 'yes'].includes(answer.trim().toLowerCase())
   } finally {
-    if (rl) rl.close();
+    if (rl) rl.close()
   }
-};
+}
 
 const cleanProject = async ({ appConfig, platform }) => {
-  await renderBanner(appConfig.banner);
+  await renderBanner(appConfig.banner)
 
-  const projectConfig = prepareProject({ platform });
+  const projectConfig = prepareProject({ platform })
   const plan = scanUnusedGeneratedArtifacts({
-    componentsDir: projectConfig.destination,
-  });
-  const targets = [...plan.directories, ...plan.files];
+    componentsDir: projectConfig.destination
+  })
+  const targets = [...plan.directories, ...plan.files]
 
   if (targets.length === 0) {
-    console.log(chalk.green("No unused generated paths found."));
-    showCopyright(appConfig);
-    return;
+    console.log(chalk.green('No unused generated paths found.'))
+    showCopyright(appConfig)
+    return
   }
 
-  console.log(chalk.yellow("Unused generated paths:"));
+  console.log(chalk.yellow('Unused generated paths:'))
   targets.forEach((target) => {
-    console.log(`  ${path.relative(process.cwd(), target)}`);
-  });
+    console.log(`  ${path.relative(process.cwd(), target)}`)
+  })
 
-  const confirmed = await promptCleanConfirmation();
+  const confirmed = await promptCleanConfirmation()
 
   if (!confirmed) {
-    console.log(chalk.yellow("Clean cancelled. No files were removed."));
-    showCopyright(appConfig);
-    return;
+    console.log(chalk.yellow('Clean cancelled. No files were removed.'))
+    showCopyright(appConfig)
+    return
   }
 
   cleanUnusedGeneratedArtifacts({
     componentsDir: projectConfig.destination,
-    ...plan,
-  });
-  showCopyright(appConfig);
-};
+    ...plan
+  })
+  showCopyright(appConfig)
+}
 
 export const runCli = async (args = process.argv) => {
-  const appConfig = readAppConfig(appPackagePath);
+  const appConfig = readAppConfig(appPackagePath)
 
   pullTemplateRepository({
     templatePath,
-    templateRepository: appConfig.templateRepository,
-  });
+    templateRepository: appConfig.templateRepository
+  })
 
-  const platforms = pullPlatforms(templatePath);
-  const existingConfig = readDotFile(projectDotFilePath);
+  const platforms = pullPlatforms(templatePath)
+  const existingConfig = readDotFile(projectDotFilePath)
   const options = parseArgs({
     args,
     appName: appConfig.name,
     platforms,
-    dotConfig: existingConfig,
-  });
+    dotConfig: existingConfig
+  })
 
   if (options.platformOnly) {
     await configurePlatform({
       appConfig,
       existingConfig,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.updateSkills) {
     await updateSkills({
       appConfig,
       existingConfig,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.exportFile) {
     exportStructure({
       appConfig,
       filePath: options.exportFile,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.fromFile) {
     generateFromStructure({
       appConfig,
       filePath: options.fromFile,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.removeName) {
     removeItem({
       appConfig,
       name: options.removeName,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.clean) {
     await cleanProject({
       appConfig,
-      platform: options.platform,
-    });
-    return;
+      platform: options.platform
+    })
+    return
   }
 
   if (options.ai) {
     const unavailableMessage = getAiUnavailableMessage({
       aiConfig: existingConfig?.ai || false,
-      options,
-    });
+      options
+    })
 
-    if (unavailableMessage) error(unavailableMessage);
+    if (unavailableMessage) error(unavailableMessage)
   }
 
-  if (options.type === "module") {
+  if (options.type === 'module') {
     await generateModule({
       aiConfig: existingConfig.ai,
       appConfig,
-      ...options,
-    });
-    return;
+      ...options
+    })
+    return
   }
 
   if (options.moduleName) {
     await generateForModule({
       aiConfig: existingConfig.ai,
       appConfig,
-      ...options,
-    });
-    return;
+      ...options
+    })
+    return
   }
 
   if (options.forSubdomain) {
     await generateScoped({
       aiConfig: existingConfig.ai,
       appConfig,
-      ...options,
-    });
-    return;
+      ...options
+    })
+    return
   }
 
-  if (["domain", "hook", "lib", "service"].includes(options.type)) {
+  if (['domain', 'hook', 'lib', 'service'].includes(options.type)) {
     await generateSidecar({
       aiConfig: existingConfig.ai,
       appConfig,
-      ...options,
-    });
-    return;
+      ...options
+    })
+    return
   }
 
-  if (options.type === "subdomain") {
+  if (options.type === 'subdomain') {
     await generateSubdomain({
       aiConfig: existingConfig.ai,
       appConfig,
-      ...options,
-    });
-    return;
+      ...options
+    })
+    return
   }
 
   await generateComponents({
     aiConfig: existingConfig.ai,
     appConfig,
-    ...options,
-  });
-};
+    ...options
+  })
+}
