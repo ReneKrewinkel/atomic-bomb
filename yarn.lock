@@ -14,6 +14,18 @@ ansi-styles@^4.0.0:
   dependencies:
     color-convert "^2.0.1"
 
+atomic-bomb@^7.2.4:
+  version "7.2.4"
+  resolved "https://registry.yarnpkg.com/atomic-bomb/-/atomic-bomb-7.2.4.tgz#f1111e11ba4651f9b17f900556196b87591da352"
+  integrity sha512-sg23dnEVjq0PdLIztGVeHBl2EFjawYLT+t3YNuXNjkGWSuYgClFblVanVHscb/2MSmf4We1H7mxcYjAF2v0HXA==
+  dependencies:
+    chalk "^5.1.2"
+    figlet "^1.5.2"
+    fs-extra "^10.1.0"
+    shelljs "^0.8.5"
+    yargs "^17.6.0"
+    zod "^3.19.1"
+
 balanced-match@^1.0.0:
   version "1.0.2"
   resolved "https://registry.npmjs.org/balanced-match/-/balanced-match-1.0.2.tgz"
